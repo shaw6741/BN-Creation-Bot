@@ -2,7 +2,7 @@ import os
 import logging
 
 def run_command():
-    os.system('streamlit run E:/px/UChi/Courses/Capstone/code/About.py')
+    os.system('streamlit run E:/px/UChi/Courses/Capstone/BN-Creation-Bot/About.py')
 
 
 def main():

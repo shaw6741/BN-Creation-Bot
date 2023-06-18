@@ -206,5 +206,5 @@ if 'conversation_ended' in st.session_state:
             'sectors': st.session_state['sectors'][-1],
         }
         
-        with open('E://px//UChi//Courses//Capstone//code//engine//conversation.json', 'w') as file:
+        with open('E://px//UChi//Courses//Capstone//BN-Creation-Bot//engine//conversation.json', 'w') as file:
             json.dump(data, file)
