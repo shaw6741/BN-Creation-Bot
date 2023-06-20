@@ -61,6 +61,10 @@ if 'style' not in st.session_state:
 if 'sectors' not in st.session_state:
     st.session_state['sectors'] = []
 
+with st.form(key='my_form', clear_on_submit=True):
+    user_input = st.text_area("You:", key='input', height=50)
+    submit_button = st.form_submit_button(label='Send')
+
 # Sidebar - API key, portfolio market cap, style, sectors
 st.sidebar.title("Info Needed")
 
@@ -126,26 +130,30 @@ response_container = st.container()
 # container for text box
 container = st.container()
 
-with container:
-    with st.form(key='my_form', clear_on_submit=True):
-        user_input = st.text_area("You:", key='input', height=50)
-        submit_button = st.form_submit_button(label='Send')
 
-    if submit_button and user_input:
-        output, total_tokens, prompt_tokens, completion_tokens = generate_response(user_input)
-        st.session_state['past'].append(user_input)
-        st.session_state['generated'].append(output)
-        st.session_state['total_tokens'].append(total_tokens)
-        st.session_state['mkt_cap'].append(mkt_cap)
-        st.session_state['style'].append(style)
-        st.session_state['sectors'].append(sectors)
+
+#with container:
+    # with st.form(key='my_form', clear_on_submit=True):
+    #     user_input = st.text_area("You:", key='input', height=50)
+    #     submit_button = st.form_submit_button(label='Send')
+
+if submit_button and user_input:
+    output, total_tokens, prompt_tokens, completion_tokens = generate_response(user_input)
+    st.session_state['past'].append(user_input)
+    st.session_state['generated'].append(output)
+    st.session_state['total_tokens'].append(total_tokens)
+    st.session_state['mkt_cap'].append(mkt_cap)
+    st.session_state['style'].append(style)
+    st.session_state['sectors'].append(sectors)
 
 
 if st.session_state['generated']:
     with response_container:
-        for i in range(len(st.session_state['generated'])):
-            message(st.session_state["past"][i], is_user=True, key=str(i) + '_user')
+        for i in range(len(st.session_state['generated'])-1, -1, -1):
+            #message(st.session_state["past"][i], is_user=True, key=str(i) + '_user')
+            #message(st.session_state["generated"][i], key=str(i))
             message(st.session_state["generated"][i], key=str(i))
+            message(st.session_state["past"][i], is_user=True, key=str(i) + '_user')
             st.write(
                 f"Number of tokens: {st.session_state['total_tokens'][i]}.")
         if 'Thank you. I\'ll' in st.session_state['generated'][-1]:
