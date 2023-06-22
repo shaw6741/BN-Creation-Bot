@@ -1,19 +1,16 @@
 import openai
 import streamlit as st
 from streamlit_chat import message
-import json, pickle
-import re
+import json, pickle, re
 
 # Setting page title and header
-st.set_page_config(page_title="BN Bot", page_icon=":robot_face:")
-st.title("Bayesian Network Creation Bot")
+st.set_page_config(page_title="BN Chatbot", page_icon=":robot_face:")
+st.title("Bayesian Network Creation Chat")
 st.markdown("""
-
 **Instruction**:
 - Enter your OpenAI API Key in the sidebar.
 - Select your portfolio information.
 - Say *Hi* to ChatGPT and let's get started!
-
 """)
 
 template = """
@@ -61,8 +58,9 @@ if 'style' not in st.session_state:
 if 'sectors' not in st.session_state:
     st.session_state['sectors'] = []
 
+# text input area for users
 with st.form(key='my_form', clear_on_submit=True):
-    user_input = st.text_area("You:", key='input', height=50)
+    user_input = st.text_area("You:", key='input', height=20)
     submit_button = st.form_submit_button(label='Send')
 
 # Sidebar - API key, portfolio market cap, style, sectors
@@ -129,8 +127,6 @@ def generate_response(prompt):
 response_container = st.container()
 # container for text box
 container = st.container()
-
-
 
 #with container:
     # with st.form(key='my_form', clear_on_submit=True):
