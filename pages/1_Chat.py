@@ -57,6 +57,10 @@ if 'style' not in st.session_state:
     st.session_state['style'] = []
 if 'sectors' not in st.session_state:
     st.session_state['sectors'] = []
+if 'hedge' not in st.session_state:
+    st.session_state['hedge'] = []
+if 'longshort' not in st.session_state:
+    st.session_state['longshort'] = []
 
 # text input area for users
 with st.form(key='my_form', clear_on_submit=True):
@@ -90,6 +94,11 @@ mkt_cap = st.sidebar.selectbox('Market Cap',
 style = st.sidebar.selectbox('Style',
                              ('Growth','Value','Core'))
 
+hedge = st.sidebar.selectbox('Hedge?',
+                             ('Hedged','Not Hedged'))
+
+longshort = st.sidebar.selectbox('Long or Short?',
+                             ('Long','Short'))
 
 clear_button = st.sidebar.button("New Chat", key="clear")
 
@@ -103,6 +112,8 @@ if clear_button:
     st.session_state['mkt_cap'] = []
     st.session_state['style'] = []
     st.session_state['sectors'] = []
+    st.session_state['hedge'] = []
+    st.session_state['longshort'] = []
 
 # generate a response
 def generate_response(prompt):
@@ -141,6 +152,8 @@ if submit_button and user_input:
     st.session_state['mkt_cap'].append(mkt_cap)
     st.session_state['style'].append(style)
     st.session_state['sectors'].append(sectors)
+    st.session_state['hedge'].append(hedge)
+    st.session_state['longshort'].append(longshort)
 
 
 if st.session_state['generated']:
@@ -208,6 +221,8 @@ if 'conversation_ended' in st.session_state:
             'mkt_cap': st.session_state['mkt_cap'][-1],
             'style': st.session_state['style'][-1],
             'sectors': st.session_state['sectors'][-1],
+            'hedge': st.session_state['hedge'][-1],
+            'long/short': st.session_state['longshort'][-1],
         }
         
         with open('E://px//UChi//Courses//Capstone//BN-Creation-Bot//engine//conversation.json', 'w') as file:
