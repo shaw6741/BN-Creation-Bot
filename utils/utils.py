@@ -44,13 +44,37 @@ class data_utilities:
         rolling_ret_df = ret_df.rolling(window=roll_window).sum().dropna()
         return ret_df, rolling_ret_df
 
-    def get_mc_correction(self, df, crash=-0.1, col_name='MC'):
-        """0: not mc, 1: mc"""
-        corrections = df <= crash
-        mc = pd.DataFrame(corrections)
+    def get_mc_correction(self, df, col_name='MC'):
+        """0: not mc, 1: mc of 5%, 2 mc of 10% and 3 mc of 20%"""
+        l0 = df <= 0.0
+        l1 = df <= -0.05
+        l2 = df <= -0.1
+        l3 = df <= -0.2
+
+        l1 = l1.astype(int)
+        l2 = l2.astype(int)
+        l3 = l3.astype(int)
+
+        mc = l0 + l1 + l2 + l3
+        mc = pd.DataFrame(mc)
         mc.columns = [col_name]
-        mc[col_name] = mc[col_name].astype(int)
         return mc
+
+    def get_portfolio_loss(self, df, port_loss, col_name, side, hedged):
+        """0: not loss, 1: loss"""
+        if hedged:
+            ret = df * (1.0 - abs(port_loss))
+        else:
+            ret = df * (1.0 - 0.0)
+
+        if side:
+            corrections = ret <= port_loss
+        else:
+            corrections = -1 * ret <= port_loss
+        port_df = pd.DataFrame(corrections)
+        port_df.columns = [col_name]
+        port_df[col_name] = port_df[col_name].astype(int)
+        return port_df
 
 
 class get_data(data_utilities):
@@ -220,6 +244,7 @@ class definition_BayesianNetwork:
         return posterior_prob
 
     def check_model(self):
+        #hist
         return self.model.check_model()
 
     def model_simulate(self, samples):
@@ -264,3 +289,15 @@ class definition_BayesianNetwork:
         nx.draw(nx_graph, with_labels=True, ax=ax)
         return fig
 
+
+def get_hist_data_from_BN(raw_data):
+    csv_path = 'E:/px/UChi/Courses/Capstone/BN-Creation-Bot/utils/hist_mc.csv'
+    train_data = pd.read_csv(csv_path)
+    bn_class = definition_BayesianNetwork()
+    bn_class.create_network(nodes=[['DW', 'MC']])
+    bn_class.fit_network(train_data)
+
+    test_data = pd.DataFrame(list(raw_data.values), columns=['MC'])
+    sim_data = bn_class.get_predict(test_data)
+    sim_array = np.array(sim_data['DW'])
+    return sim_array

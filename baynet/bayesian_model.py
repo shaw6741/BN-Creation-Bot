@@ -3,16 +3,17 @@ import pandas as pd
 import copy
 import datetime
 import random
-from utils.utils import get_data, definition_BayesianNetwork
+from utils.utils import get_data, definition_BayesianNetwork, get_hist_data_from_BN
 
 
 class model_run(definition_BayesianNetwork):
-    def __init__(self, mkt_ticker, client_portfolio, nodes, crash, portfolio_loss, oil_jump, inf_jump, diff_periods, time_horizon, roll_win,
+    def __init__(self, mkt_ticker, client_portfolio, nodes, side_, hedged_, portfolio_loss, oil_jump, inf_jump, diff_periods, time_horizon, roll_win,
                  triggers_dict, controls_dict, events_dict, mitigators_dict, consequences_dict):
         self.mkt_ticker = mkt_ticker
         self.client_portfolio = client_portfolio
         self.nodes = nodes
-        self.crash_ = crash
+        self.portfolio_side = side_
+        self.portfolio_hedged = hedged_
         self.portfolio_loss = portfolio_loss
         self.oil_jump = oil_jump
         self.inf_jump = inf_jump
@@ -28,6 +29,7 @@ class model_run(definition_BayesianNetwork):
             self.events_list = list(events_dict.keys())
         if mitigators_dict:
             self.mitigators_list = list(mitigators_dict.keys())
+            self.portfolio_hedged = True
         if consequences_dict:
             self.consequences_list = list(consequences_dict.keys())
 
@@ -40,8 +42,7 @@ class model_run(definition_BayesianNetwork):
         self.inf_syn = ['INF', 'CPI']
         self.fed_syn = ['FED']
         self.unemployment_syn = ['UNP']
-        self.buy_straddle_syn = ['BS']
-        self.short_sell_syn = ['SF', 'SS']
+        self.unique_events = ['TW', 'DW']
 
         self.data_pull = get_data()
         self.start, self.end = self.data_pull.get_start_end_dates(self.time_horizon)
@@ -58,26 +59,27 @@ class model_run(definition_BayesianNetwork):
                     if node not in self.missing_node_list:
                         self.missing_node_list.append(node)
 
-    def construct_neg_ret(self, ticker, perc_loss, col_name):
+    def construct_returns(self, ticker):
         df_close = self.data_pull.get_df_portfolio(ticker, self.start, self.end)
         df_ret, df_roll_ret = self.data_pull.get_rolling_returns(df_close, self.diff_periods, self.roll_win)
-        df_correction = self.data_pull.get_mc_correction(df_roll_ret, perc_loss, col_name)
-        return df_correction
+        return df_ret, df_roll_ret
 
     def construct_mkt_crash(self):
+        _, mc_roll_ret = self.construct_returns(self.mkt_ticker)
         if self.events_list:
-            self.mc_df = self.construct_neg_ret(self.mkt_ticker, self.crash_, self.events_list[0])
+            self.mc_df = self.data_pull.get_mc_correction(mc_roll_ret, self.events_list[0])
             self.not_indicator_node_list.append(self.events_list[0])
         else:
-            self.mc_df = self.construct_neg_ret(self.mkt_ticker, self.crash_, 'MC')
+            self.mc_df = self.data_pull.get_mc_correction(mc_roll_ret, 'MC')
             self.not_indicator_node_list.append('MC')
 
     def construct_portfolio_loss(self):
+        _, port_roll_ret = self.construct_returns(self.client_portfolio)
         if self.consequences_list:
-            self.port_c_df = self.construct_neg_ret(self.client_portfolio, self.portfolio_loss, self.consequences_list[0])
+            self.port_c_df = self.data_pull.get_portfolio_loss(port_roll_ret, self.portfolio_loss, self.consequences_list[0], self.portfolio_side, self.portfolio_hedged)
             self.not_indicator_node_list.append(self.consequences_list[0])
         else:
-            self.port_c_df = self.construct_neg_ret(self.client_portfolio, self.portfolio_loss, 'PIL')
+            self.port_c_df = self.data_pull.get_portfolio_loss(port_roll_ret, self.portfolio_loss, 'PIL', self.portfolio_side, self.portfolio_hedged)
             self.not_indicator_node_list.append('PIL')
 
     def merge_df(self):
@@ -109,22 +111,17 @@ class model_run(definition_BayesianNetwork):
         # get some random date for other parameters
         N = len(self.bn_data)
         for col_name in self.missing_node_list:
-            if col_name in self.buy_straddle_syn:
-                bs_data = self.data_pull.get_historical_data('VIX', self.start, self.end)
-                _, bs_ret_roll = self.data_pull.get_rolling_returns(bs_data, self.diff_periods, self.roll_win)
-                self.merged_data[col_name] = bs_ret_roll
-                self.bn_data[col_name] = bs_ret_roll >= abs(self.crash_)
-                self.bn_data[col_name] = self.bn_data[col_name].astype(int)
-            elif col_name in self.short_sell_syn:
-                ss_data = self.data_pull.get_historical_data('SP', self.start, self.end)
-                _, ss_ret_roll = self.data_pull.get_rolling_returns(ss_data, self.diff_periods, self.roll_win)
-                self.merged_data[col_name] = ss_ret_roll
-                self.bn_data[col_name] = ss_ret_roll <= 0
-                self.bn_data[col_name] = self.bn_data[col_name].astype(int)
+            if col_name in self.mitigators_list:
+                temp_array = self.get_rnd(N, 100)
+            elif col_name in self.unique_events:
+                if self.events_list:
+                    temp_array = get_hist_data_from_BN(self.bn_data[self.events_list[0]])
+                else:
+                    temp_array = get_hist_data_from_BN(self.bn_data['MC'])
             else:
                 rand_num = random.randint(50, 99)
                 temp_array = self.get_rnd(N, rand_num)
-                self.bn_data[col_name] = temp_array
+            self.bn_data[col_name] = temp_array
 
     def initialized_data(self):
         self.construct_mkt_crash()
