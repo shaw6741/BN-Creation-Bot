@@ -1,19 +1,16 @@
 import openai
 import streamlit as st
 from streamlit_chat import message
-import json, pickle
-import re
+import json, pickle, re
 
 # Setting page title and header
-st.set_page_config(page_title="BN Bot", page_icon=":robot_face:")
-st.title("Bayesian Network Creation Bot")
+st.set_page_config(page_title="BN Chatbot", page_icon=":robot_face:")
+st.title("Bayesian Network Creation Chat")
 st.markdown("""
-
 **Instruction**:
 - Enter your OpenAI API Key in the sidebar.
 - Select your portfolio information.
 - Say *Hi* to ChatGPT and let's get started!
-
 """)
 
 template = """
@@ -50,6 +47,7 @@ if 'past' not in st.session_state:
     st.session_state['past'] = []
 if 'messages' not in st.session_state:
     st.session_state['messages'] = []
+    #st.session_state['messages'].append({'role':'system', 'content':template})
 
 if 'total_tokens' not in st.session_state:
     st.session_state['total_tokens'] = []
@@ -60,6 +58,48 @@ if 'style' not in st.session_state:
     st.session_state['style'] = []
 if 'sectors' not in st.session_state:
     st.session_state['sectors'] = []
+if 'hedge' not in st.session_state:
+    st.session_state['hedge'] = []
+if 'longshort' not in st.session_state:
+    st.session_state['longshort'] = []
+if 'conversation_ended' not in st.session_state:
+    st.session_state['conversation_ended'] = False
+
+if 'stored_session' not in st.session_state:
+    st.session_state["stored_session"] = []
+
+def get_text():
+    """
+    Get the user input text.
+
+    Returns:
+        (str): The text entered by the user
+    """
+    input_text = st.text_input("You: ", st.session_state["messages"], key="input",
+                               placeholder="Your AI assistant here! Talk with me ...", 
+                               label_visibility='hidden')
+    return input_text
+
+# Define function to start a new chat
+def new_chat():
+    """
+    Clears session state and starts a new chat.
+    """
+    save = []
+    for i in range(len(st.session_state['generated'])-1, -1, -1):
+        save.append("User:" + st.session_state["past"][i])
+        save.append("Bot:" + st.session_state["generated"][i])        
+    st.session_state["stored_session"].append(save)
+    st.session_state["generated"] = []
+    st.session_state["past"] = []
+    st.session_state["messages"] = []
+    st.session_state['total_tokens'] = []
+    st.session_state['mkt_cap'] = []
+    st.session_state['style'] = []
+    st.session_state['sectors'] = []
+    st.session_state['hedge'] = []
+    st.session_state['longshort'] = []
+    st.session_state['conversation_ended'] = False
 
 # Sidebar - API key, portfolio market cap, style, sectors
 st.sidebar.title("Info Needed")
@@ -88,19 +128,13 @@ mkt_cap = st.sidebar.selectbox('Market Cap',
 style = st.sidebar.selectbox('Style',
                              ('Growth','Value','Core'))
 
+hedge = st.sidebar.selectbox('Hedge?',
+                             ('Hedged','Not Hedged'))
 
-clear_button = st.sidebar.button("New Chat", key="clear")
+longshort = st.sidebar.selectbox('Long or Short?',
+                             ('Long','Short'))
 
-# reset everything
-if clear_button:
-    st.session_state['generated'] = []
-    st.session_state['past'] = []
-    st.session_state['messages'] = []
-    st.session_state['number_tokens'] = []
-    st.session_state['total_tokens'] = []
-    st.session_state['mkt_cap'] = []
-    st.session_state['style'] = []
-    st.session_state['sectors'] = []
+st.sidebar.button("New Chat", on_click = new_chat, type='primary')
 
 # generate a response
 def generate_response(prompt):
@@ -126,31 +160,36 @@ response_container = st.container()
 # container for text box
 container = st.container()
 
-with container:
-    with st.form(key='my_form', clear_on_submit=True):
-        user_input = st.text_area("You:", key='input', height=50)
-        submit_button = st.form_submit_button(label='Send')
-
-    if submit_button and user_input:
-        output, total_tokens, prompt_tokens, completion_tokens = generate_response(user_input)
-        st.session_state['past'].append(user_input)
-        st.session_state['generated'].append(output)
-        st.session_state['total_tokens'].append(total_tokens)
-        st.session_state['mkt_cap'].append(mkt_cap)
-        st.session_state['style'].append(style)
-        st.session_state['sectors'].append(sectors)
+#with container:
+    # with st.form(key='my_form', clear_on_submit=True):
+    #     user_input = st.text_area("You:", key='input', height=50)
+    #     submit_button = st.form_submit_button(label='Send')
+user_input = get_text()
+if user_input:
+    output, total_tokens, prompt_tokens, completion_tokens = generate_response(user_input)
+    st.session_state['past'].append(user_input)
+    st.session_state['generated'].append(output)
+    st.session_state['total_tokens'].append(total_tokens)
+    st.session_state['mkt_cap'].append(mkt_cap)
+    st.session_state['style'].append(style)
+    st.session_state['sectors'].append(sectors)
+    st.session_state['hedge'].append(hedge)
+    st.session_state['longshort'].append(longshort)
 
 
 if st.session_state['generated']:
     with response_container:
-        for i in range(len(st.session_state['generated'])):
-            message(st.session_state["past"][i], is_user=True, key=str(i) + '_user')
+        for i in range(len(st.session_state['generated'])-1, -1, -1):
+            #message(st.session_state["past"][i], is_user=True, key=str(i) + '_user')
+            #message(st.session_state["generated"][i], key=str(i))
             message(st.session_state["generated"][i], key=str(i))
+            message(st.session_state["past"][i], is_user=True, key=str(i) + '_user')
             st.write(
                 f"Number of tokens: {st.session_state['total_tokens'][i]}.")
-        if 'Thank you. I\'ll' in output:
+        if 'Thank you. I\'ll' in st.session_state['generated'][-1]:
             # End the conversation if "Thank you. I'll" is in the output
             st.session_state['conversation_ended'] = True
+
 
 # Format Results
 def get_node_names(texts, component_keyword):
@@ -186,7 +225,7 @@ def get_edges(texts):
 
 # Save the conversation and sidebar information as a new file
 if 'conversation_ended' in st.session_state:
-    if st.session_state['conversation_ended']:
+    if st.session_state['conversation_ended'] == True:
         final_response = st.session_state['generated'][-1]
         triggers = get_node_names(final_response, 'Triggers')
         controls = get_node_names(final_response, 'Controls')
@@ -203,6 +242,9 @@ if 'conversation_ended' in st.session_state:
             'mkt_cap': st.session_state['mkt_cap'][-1],
             'style': st.session_state['style'][-1],
             'sectors': st.session_state['sectors'][-1],
+            'hedge': st.session_state['hedge'][-1],
+            'long/short': st.session_state['longshort'][-1],
         }
-        with open('E://px//UChi//Courses//Capstone//code//conversation.json', 'w') as file:
+        
+        with open('E://px//UChi//Courses//Capstone//BN-Creation-Bot//engine//conversation.json', 'w') as file:
             json.dump(data, file)

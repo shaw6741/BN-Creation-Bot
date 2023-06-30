@@ -283,10 +283,24 @@ class definition_BayesianNetwork:
     def plot_daft(self):
         return self.model.to_daft().render()
 
+    # def plot_networkx(self):
+    #     nx_graph = nx.DiGraph(self.model.edges())
+    #     fig, ax = plt.subplots()
+    #     nx.draw(nx_graph, with_labels=True, ax=ax)
+    #     return fig
+    
     def plot_networkx(self):
         nx_graph = nx.DiGraph(self.model.edges())
+        for layer, nodes in enumerate(nx.topological_generations(nx_graph)):
+            # `multipartite_layout` expects the layer as a node attribute, so add the
+            # numeric layer value as a node attribute
+            for node in nodes:
+                nx_graph.nodes[node]["layer"] = layer
+
+        # Compute the multipartite_layout using the "layer" node attribute
+        pos = nx.multipartite_layout(nx_graph, subset_key="layer")
         fig, ax = plt.subplots()
-        nx.draw(nx_graph, with_labels=True, ax=ax)
+        nx.draw_networkx(nx_graph, pos=pos, ax=ax)
         return fig
 
 
