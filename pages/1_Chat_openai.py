@@ -62,7 +62,7 @@ if 'hedge' not in st.session_state:
 if 'longshort' not in st.session_state:
     st.session_state['longshort'] = []
 if 'conversation_ended' not in st.session_state:
-    st.session_state['conversation_ended'] = False
+   st.session_state['conversation_ended'] = False
 
 # text input area for users
 with st.form(key='my_form', clear_on_submit=True):

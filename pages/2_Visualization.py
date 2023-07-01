@@ -15,7 +15,7 @@ def get_sim_y(node, n_samples):
     return predict_.values
 
 def Network():
-    st.header('Network Plot')
+    st.markdown('#### Network Plot')
     fig = engine.BN_model.plot_networkx()
     st.write(fig)
 
@@ -25,15 +25,15 @@ def Distribution(predict_y):
     st.pyplot(obj)
 
 def Posterior(predict_y):
-    st.header('Posterior Distribution')
+    st.markdown('#### Posterior Distribution')
     st.pyplot(call_arviz_lib().get_posterior(predict_y))
 
 def Forest(predict_y):
-    st.header('Plot Forest')
+    st.markdown('#### Plot Forest')
     st.pyplot(call_arviz_lib().get_plot_forest(predict_y))
 
 def Summary(predict_y):
-    st.header('Summary Table')
+    st.markdown('#### Summary Table')
     df = pd.DataFrame(call_arviz_lib().get_summary(predict_y))  # st.dataframe
     st.write(df)
 
@@ -43,6 +43,29 @@ def find_key(dictionary, value):
             return key
     return None
 
+def cpd_to_df(cpd):
+    variables = cpd.variables
+    cardinality = cpd.cardinality
+    values = cpd.values.flatten()
+
+    # Generate all combinations of variable states
+    index_tuples = pd.MultiIndex.from_product([range(card) for card in cardinality], names=variables)
+
+    # Create DataFrame
+    df = pd.DataFrame({'Probabilities': values}, index=index_tuples)
+
+    # Rename columns
+    for var in variables:
+        state_names = cpd.state_names[var]
+        state_names = np.array(state_names).astype(str)
+        column_name = f'{var} ({", ".join(state_names)})'
+        df.rename(columns={var: column_name}, inplace=True)
+
+    # Sort columns
+    df = df.reorder_levels(variables, axis=0)
+    df.sort_index(axis=0, inplace=True)
+
+    return df    
 
 def run():
     # Setting page title and header
@@ -62,7 +85,7 @@ def run():
             new_dict.update(json_file[section])
 
     # Sidebar to create
-    st.sidebar.title('User Variable')
+    st.sidebar.title('Select Variable')
     window = st.sidebar.slider('Num Samples', min_value=1000, max_value=100000, step=500)
     node_value = st.sidebar.selectbox('Node', list(new_dict.values()))
     node_key = find_key(new_dict, node_value)
@@ -72,16 +95,18 @@ def run():
         Network()
 
     body = st.container()
-    with body:
-        pred = get_sim_y(node_key, window)
+    with body:   
+        cpds = engine.BN_model.get_cpds()     
+        st.markdown("""### Node: {}""".format(node_value))
+        # Get Conditional Probability for a specific node
+        for cpd in cpds:
+            if cpd.variable == node_key:
+                cpd_table = cpd_to_df(cpd)
+                st.dataframe(cpd_table)
 
-        #col1, col2, col3 = st.columns(3)
-        # Distribution(pred)
-        #with col1:
+        pred = get_sim_y(node_key, window)
         Posterior(pred)
-        #with col2:
         Forest(pred)
-        #with col3:
         Summary(pred)
 
 def main():

@@ -4,12 +4,28 @@ import streamlit as st
 # Setting page title and header
 st.set_page_config(page_title="BN Chatbot", page_icon=":robot_face:")
 st.title("Bayesian Network Creation Chat")
-st.markdown("""
-**Instruction**:
-- Enter your OpenAI API Key in the sidebar.
-- Select your portfolio information.
-- Say *Hi* to ChatGPT and let's get started!
-""")
+with st.expander("Instructions", expanded=True):
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+        ##### **Start a chat:**
+        1. Go to sidebar:
+            1. <u>Always enter OpenAI API Key first.</u>
+            2. Select portfolio info.
+        2. Say <u>Hi</u> to ChatGPT and get started!
+        3. Click <u>New Chat</u> in the sidebar to restart.
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(
+            """
+            ##### **After all the info are collected:**
+            1. Go to Visualization page for results.
+            2. Click the <u>Download</u> button in the sidebar to get a conversation history file. And it will start a new session automatically.
+            """,
+            unsafe_allow_html=True
+        )
+
+template, PROMPT = get_template()
 
 # Initialise session state variables
 sessions = ['generated', 'past', 'input', 'stored_session',
@@ -35,9 +51,9 @@ def submit():
 def get_text():
     input_text = st.text_input("You: ", st.session_state["input"], key="input",
                                on_change=submit,
-                            placeholder="Your AI assistant here!",
-                            #label_visibility='hidden',
-                            )
+                               placeholder="Your AI assistant here!",
+                               #label_visibility='hidden',
+                               )
     #return input_text
     return st.session_state.input1
 
@@ -48,9 +64,14 @@ def new_chat():
     """
     save = []
     for i in range(len(st.session_state['generated'])-1, -1, -1):
-        save.append("User:" + st.session_state["past"][i])
         save.append("Bot:" + st.session_state["generated"][i])
+        save.append("User:" + st.session_state["past"][i])
+    
     st.session_state["stored_session"].append(save)
+    with open(r'stored_session.txt', 'w') as fp:
+        for items in save:
+            fp.write("%s\n" % items)
+
     st.session_state["generated"] = []
     st.session_state["past"] = []
     st.session_state["input"] = ""
@@ -72,6 +93,23 @@ st.sidebar.title("Info Needed")
 
 # OpenAI API key
 API_O = st.sidebar.text_input('OPENAI-API-KEY', type='password')
+if API_O:
+    llm = OpenAI(temperature=0.3,
+                 openai_api_key=API_O,
+                #model_name="gpt-3.5-turbo",
+                #model_name = 'gpt-3.5-turbo-0613',
+                verbose=False)
+
+    if 'memory' not in st.session_state:
+        st.session_state.memory = ConversationBufferMemory()
+
+    Conversation = ConversationChain(
+            llm=llm, prompt=PROMPT,
+            memory = st.session_state.memory
+            )
+
+else:
+    st.sidebar.warning('API key required.The API key is not stored.')
 
 sectors = st.sidebar.multiselect('Sectors',
                             ['SP','NASDAQ','DOW','Russell',
@@ -94,37 +132,21 @@ longshort = st.sidebar.selectbox('Long or Short?',
                             ('Long','Short'))
 
 
-
-if API_O:
-    llm = OpenAI(temperature=0.3, openai_api_key=API_O,
-                #model_name="gpt-3.5-turbo",
-                verbose=False)
-
-    if 'memory' not in st.session_state:
-        st.session_state.memory = ConversationBufferMemory()
-
-    Conversation = ConversationChain(
-            llm=llm, prompt=PROMPT,
-            memory = st.session_state.memory
-            )
-
-else:
-    st.sidebar.warning(
-        'API key required.The API key is not stored.'
-    )
-
 # Add a button to start a new chat
-#st.sidebar.button("New Chat", on_click = new_chat, type='primary')
+st.sidebar.button("New Chat", on_click = new_chat, type='primary')
 
 # Get the user input
-user_input = get_text()
+# user_input = get_text()
+
+input_field = st.empty()
+with input_field.container():
+    user_input = get_text()
 
 # Generate the output using the ConversationChain object and the user input, and add the input/output to the session
 #if user_input and st.session_state['conversation_ended'] == False:
 if user_input:
     with get_openai_callback() as cb:
         output = Conversation.run(input=user_input)
-
     st.session_state.past.append(user_input)
     st.session_state.generated.append(output)
     st.session_state.total_tokens.append(cb.total_tokens)
@@ -151,7 +173,8 @@ with st.expander("Conversation", expanded=True):
         if len(st.session_state['generated']) > 0 and 'Thank you. I\'ll' in st.session_state['generated'][-1]:
                 # End the conversation if "Thank you. I'll" is in the output
                 st.session_state['conversation_ended'] = True
-
+                input_field.empty()
+                
 # Save the conversation and sidebar information as a new file
 if 'conversation_ended' in st.session_state and st.session_state['conversation_ended'] == True:
         download_str = '\n'.join(download_str)
@@ -159,26 +182,9 @@ if 'conversation_ended' in st.session_state and st.session_state['conversation_e
                                    file_name = 'conversation_history.txt',
                                    on_click = new_chat,
                                    )
-
+        
         final_response = st.session_state['generated'][-1]
-        triggers = get_node_names(final_response, 'Triggers')
-        controls = get_node_names(final_response, 'Controls')
-        events = get_node_names(final_response, 'Risk Events')
-        mitigators = get_node_names(final_response, 'Mitigators')
-        consequences = get_node_names(final_response, 'Consequences')
-        edges = get_edges(final_response)
+        data = format_data(final_response)
 
-        data = {
-            'triggers': triggers, 'controls': controls,
-            'events': events, 'mitigators': mitigators,
-            'consequences': consequences, 'edges': edges,
-            'mkt_cap': st.session_state['mkt_cap'][-1],
-            'style': st.session_state['style'][-1],
-            'sectors': st.session_state['sectors'][-1],
-            'hedge': st.session_state['hedge'][-1],
-            'long/short': st.session_state['longshort'][-1],
-        }
-
-        #with open('conversation.json', 'w') as file:
         with open('E:\\px\\Uchi\\Courses\\Capstone\\BN-Creation-Bot\\engine\\conversation.json', 'w') as file:
             json.dump(data, file)

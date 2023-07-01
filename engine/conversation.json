@@ -1,1 +1,1 @@
-{"triggers": null, "controls": null, "events": null, "mitigators": null, "consequences": null, "edges": [], "mkt_cap": "Large_Cap", "style": "Growth", "sectors": ["CRUDE"], "hedge": "Hedged", "long/short": "Long"}
+{"triggers": {"IN": "inflation", "TW": "trade"}, "controls": null, "events": {"MC": "market"}, "mitigators": {"BS": "buying"}, "consequences": {"RL": "return"}, "edges": [["IN", "MC"], ["TW", "MC"], ["MC", "RL"], ["BS", "RL"]], "mkt_cap": "Large_Cap", "style": "Growth", "sectors": ["OIL"], "hedge": "Hedged", "long/short": "Long"}
