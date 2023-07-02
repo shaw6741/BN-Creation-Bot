@@ -83,7 +83,7 @@ def run():
     st.set_page_config(page_title="BN Results", page_icon=":robot_face:")  # , layout="wide"
     st.title("Bayesian Network Results")
     st.set_option('deprecation.showPyplotGlobalUse', False)
-    path = 'E:/px/UChi/Courses/Capstone/BN-Creation-Bot/engine/conversation.json'
+    path = './engine/conversation.json'
     with open(path, 'r') as file:
             json_file = json.load(file)
     

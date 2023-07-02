@@ -3,9 +3,7 @@ import json
 
 class read_json():
     def __init__(self):
-        # self.path = '/Users/zy/Desktop/capstone 2/conversation.json'  # Yao
-        #self.path = 'D:/Documents/UChicago/capstone/engine/conversation.json'  # Oscar
-        self.path = 'E:/px/UChi/Courses/Capstone/BN-Creation-Bot/engine/conversation.json' # xiao
+        self.path = './engine/conversation.json'
         self.data = None
 
         # Inputs from conversation

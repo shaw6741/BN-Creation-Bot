@@ -187,7 +187,7 @@ if 'conversation_ended' in st.session_state and st.session_state['conversation_e
         final_response = st.session_state['generated'][-1]
         data = format_data(final_response)
 
-        with open('E:\\px\\Uchi\\Courses\\Capstone\\BN-Creation-Bot\\engine\\conversation.json', 'w') as file:
+        with open('engine\\conversation.json', 'w') as file:
             json.dump(data, file)
         
         openai.api_key = API_O
@@ -199,5 +199,6 @@ if 'conversation_ended' in st.session_state and st.session_state['conversation_e
         ticker_dic = get_data().economical_ticker_dict
         node_dic = chat_find_tickers(variables, ticker_dic)
         node_dic = eval(node_dic)
-        with open('E:\\px\\Uchi\\Courses\\Capstone\\BN-Creation-Bot\\engine\\node_dic.json', 'w') as file:
+        
+        with open('engine\\node_dic.json', 'w') as file:
             json.dump(node_dic, file)

@@ -296,7 +296,7 @@ class definition_BayesianNetwork:
 
 
 def get_hist_data_from_BN(raw_data):
-    csv_path = 'E:/px/UChi/Courses/Capstone/BN-Creation-Bot/utils/hist_mc.csv'
+    csv_path = './utils/hist_mc.csv'
     train_data = pd.read_csv(csv_path)
     bn_class = definition_BayesianNetwork()
     bn_class.create_network(nodes=[['DW', 'MC']])
