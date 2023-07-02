@@ -67,6 +67,17 @@ def cpd_to_df(cpd):
 
     return df    
 
+def create_prob_table():
+    df = pd.DataFrame(
+        [
+            {"State": None, "Prob": None},
+            {"State": None, "Prob": None},
+        ]
+    )
+    st.data_editor(df, key="data_editor") # 👈 Set a key
+    st.write("Here's the session state:")
+    st.write(st.session_state["data_editor"]) # 👈 Access the edited data
+    
 def run():
     # Setting page title and header
     st.set_page_config(page_title="BN Results", page_icon=":robot_face:")  # , layout="wide"
@@ -95,9 +106,11 @@ def run():
         Network()
 
     body = st.container()
-    with body:   
+    with body:
         cpds = engine.BN_model.get_cpds()     
         st.markdown("""### Node: {}""".format(node_value))
+        create_prob_table()
+
         # Get Conditional Probability for a specific node
         for cpd in cpds:
             if cpd.variable == node_key:

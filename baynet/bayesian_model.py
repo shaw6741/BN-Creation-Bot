@@ -7,7 +7,8 @@ from utils.utils import get_data, definition_BayesianNetwork, get_hist_data_from
 
 
 class model_run(definition_BayesianNetwork):
-    def __init__(self, mkt_ticker, client_portfolio, nodes, side_, hedged_, portfolio_loss, oil_jump, inf_jump, diff_periods, time_horizon, roll_win,
+    def __init__(self, mkt_ticker, client_portfolio, nodes, side_, hedged_, portfolio_loss, 
+                 oil_jump, inf_jump, diff_periods, time_horizon, roll_win,
                  triggers_dict, controls_dict, events_dict, mitigators_dict, consequences_dict):
         self.mkt_ticker = mkt_ticker
         self.client_portfolio = client_portfolio

@@ -76,7 +76,6 @@ class data_utilities:
         port_df[col_name] = port_df[col_name].astype(int)
         return port_df
 
-
 class get_data(data_utilities):
     def __init__(self):
         self.fred = Fred(api_key='d68ec16bf05ee54e7c928ff6d7e144e3')
@@ -85,9 +84,11 @@ class get_data(data_utilities):
                                    'Financial': 'XLF', 'Materials': 'XLB', 'Communications': 'XLC', 'Energy': 'XLE', 'Industrial': 'XLI',
                                    'Technology': 'XLK', 'Consumer': 'XLP', 'Real_Estate': 'XLRE', 'Utilities': 'XLU', 'Healthcare': 'XLV', 'Consumer': 'XLY',
                                    'Growth': 'VUG', 'Value': 'VTV', 'Small_Cap': 'VB', 'Mid_Cap': 'VO', 'Large_Cap': 'VV', }
-        self.economical_ticker_dict = {'CPI': 'CPIAUCSL', 'INF': 'CPIAUCSL', 'FED': 'DFF', 'EPU': 'USEPUINDXD'}  # , 'Unemployment' #VIX
+        self.economical_ticker_dict = {'CPI': 'CPIAUCSL', 'INF': 'CPIAUCSL', 'IN': 'CPIAUCSL', 
+                                       'FED': 'DFF', 'FR': 'DFF', 'FRI': 'DFF',
+                                       'EPU': 'USEPUINDXD', 'Unemployment':'UNRATE'}  # , 'Unemployment' #VIX
 
-    def get_historical_data(self, ticker='SP', start_date='1970-01-01', end_date='2023-04-01'):
+    def get_historical_data(self, ticker='SP', start_date='1970-01-01', end_date='2023-06-01'):
         if ticker in self.market_ticker_dict.keys():
             data = self.get_yahoo(self.market_ticker_dict[ticker], start_date, end_date)
             return data
@@ -282,22 +283,12 @@ class definition_BayesianNetwork:
 
     def plot_daft(self):
         return self.model.to_daft().render()
-
-    # def plot_networkx(self):
-    #     nx_graph = nx.DiGraph(self.model.edges())
-    #     fig, ax = plt.subplots()
-    #     nx.draw(nx_graph, with_labels=True, ax=ax)
-    #     return fig
     
     def plot_networkx(self):
         nx_graph = nx.DiGraph(self.model.edges())
         for layer, nodes in enumerate(nx.topological_generations(nx_graph)):
-            # `multipartite_layout` expects the layer as a node attribute, so add the
-            # numeric layer value as a node attribute
             for node in nodes:
                 nx_graph.nodes[node]["layer"] = layer
-
-        # Compute the multipartite_layout using the "layer" node attribute
         pos = nx.multipartite_layout(nx_graph, subset_key="layer")
         fig, ax = plt.subplots()
         nx.draw_networkx(nx_graph, pos=pos, ax=ax)

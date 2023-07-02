@@ -1,0 +1,4 @@
+- chat_help
+  - get_template: template for the main chat
+  - get_node_names, get_edges, format_data: save into conversation.json after all info collected
+  - template_find_tickers, chat_find_tickers: use chatgpt to find tickers for node, inflation->CPIUS..., fed rates->DFF, 

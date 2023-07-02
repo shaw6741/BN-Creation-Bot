@@ -6,9 +6,10 @@ from langchain.memory import ConversationBufferMemory
 from langchain.prompts.prompt import PromptTemplate
 from langchain.schema import messages_from_dict, messages_to_dict
 from langchain.callbacks import get_openai_callback
-
+import openai
 import streamlit as st
 
+# Template for main chat
 def get_template():
     template = """
     You're a robot collecting info from the user about making a Bayesian Network to assess the risk of event(s).
@@ -50,6 +51,7 @@ def get_template():
     
     return template, PROMPT
 
+# ---------------------------------------------
 # Format Results
 def get_node_names(texts, component_keyword):
     """
@@ -68,7 +70,7 @@ def get_node_names(texts, component_keyword):
     if matches:
         component = matches.group(1)
         if component != 'None':
-             component_dic = {item.split(" ")[-1].replace("(", "").replace(")", ""): item.split(" ")[0] for item in component.split(", ")}
+             component_dic = {item.split(" ")[-1].replace("(", "").replace(")", ""): item.split(" (")[0] for item in component.split(", ")}
     return component_dic
 
 def get_edges(texts):
@@ -103,11 +105,26 @@ def format_data(response):
         return data
 
 
+# ------------------------------
+# To find tickers for the nodes, based on economic indicator dic we have
+template_find_tickers = """
+Find the ticker values for {} based on the dictionary provided {}.
+Return me a python dictionary,
+keys are the variables, values are the tickers.
+If no ticker found, then put variable:None.
+Start the answer with the python dictionary. DO NOT add any more words beside the dictionary.
+"""
 
-text = "Ok, so here's a summary of the information you provided: \n1. Triggers: inflation (IN), trade war (TW), declaration of war (DW)\n2. Controls: None\n3. Risk Events: market correction (MC)\n4. Mitigators: buying straddles (BS)\n5. Consequences: return loss (RL)\n6. Edges: IN -> MC, TW -> MC, DW -> MC, BS -> RL, MC -> RL"
+def chat_find_tickers(variables, ticker_dic):
+    messages = []
+    user_message = template_find_tickers.format(variables, ticker_dic)
 
-# Extract Triggers
-triggers_start_index = text.index("Triggers: ") + len("Triggers: ")
-triggers_end_index = text.index("\n", triggers_start_index)
-triggers_text = text[triggers_start_index:triggers_end_index].split(", ")
-triggers = {trigger.split(" ")[-1].replace("(", "").replace(")", ""): trigger.split(" ")[0] for trigger in triggers_text}
+    messages.append({"role": "user", "content": user_message})
+    completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo-0613",
+            messages=messages,
+            temperature=0,
+        )
+
+    response = completion.choices[0].message.content
+    return response

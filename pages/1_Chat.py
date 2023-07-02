@@ -1,4 +1,5 @@
 from utils.chat_help import *
+from utils.utils import get_data
 import streamlit as st
 
 # Setting page title and header
@@ -188,3 +189,15 @@ if 'conversation_ended' in st.session_state and st.session_state['conversation_e
 
         with open('E:\\px\\Uchi\\Courses\\Capstone\\BN-Creation-Bot\\engine\\conversation.json', 'w') as file:
             json.dump(data, file)
+        
+        openai.api_key = API_O
+        variables = []
+        for i in ['triggers','controls','events','mitigators','consequences']:
+            if data.get(i):
+                variables.extend(list(data.get(i).values()))
+
+        ticker_dic = get_data().economical_ticker_dict
+        node_dic = chat_find_tickers(variables, ticker_dic)
+        node_dic = eval(node_dic)
+        with open('E:\\px\\Uchi\\Courses\\Capstone\\BN-Creation-Bot\\engine\\node_dic.json', 'w') as file:
+            json.dump(node_dic, file)
