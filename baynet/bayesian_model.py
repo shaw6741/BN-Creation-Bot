@@ -5,7 +5,6 @@ import datetime
 import random
 from utils.utils import get_data, definition_BayesianNetwork, get_hist_data_from_BN
 
-
 class model_run(definition_BayesianNetwork):
     def __init__(self, mkt_ticker, client_portfolio, nodes, side_, hedged_, portfolio_loss, 
                  oil_jump, inf_jump, diff_periods, time_horizon, roll_win,

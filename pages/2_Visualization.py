@@ -20,7 +20,7 @@ def Network():
     st.write(fig)
 
 def Distribution(predict_y):
-    st.header('Distribution')
+    st.markdown('#### Distribution')
     obj = call_arviz_lib().get_dist(predict_y)
     st.pyplot(obj)
 
@@ -50,10 +50,7 @@ def cpd_to_df(cpd):
 
     # Generate all combinations of variable states
     index_tuples = pd.MultiIndex.from_product([range(card) for card in cardinality], names=variables)
-
-    # Create DataFrame
     df = pd.DataFrame({'Probabilities': values}, index=index_tuples)
-
     # Rename columns
     for var in variables:
         state_names = cpd.state_names[var]
@@ -74,9 +71,27 @@ def create_prob_table():
             {"State": None, "Prob": None},
         ]
     )
-    st.data_editor(df, key="data_editor") # 👈 Set a key
+    st.data_editor(df, key="data_editor",
+                   use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        'State':st.column_config.Column(help = 'states for a node, \ne.g. for inflation, it can be high, normal, low'),
+                        'Prob':st.column_config.NumberColumn(
+                                                             help='what should be the prior probabilities for each state, \ne.g. for inflation, high/low can be less likely with 10% probability each, while normal is more likely to happen with 80% probability',
+                                                             min_value = 0, max_value=1,
+                                                             #format = "%d '%'",
+                                                             )
+                    })
+    
     st.write("Here's the session state:")
-    st.write(st.session_state["data_editor"]) # 👈 Access the edited data
+    st.write(st.session_state["data_editor"])
+    rows = st.session_state.data_editor['edited_rows']
+    states, probs = [], []
+    for row in rows.keys():
+        states.append(rows[row]['State'])
+        probs.append(rows[row]['Prob'])
+    st.write(states, probs)
+
     
 def run():
     # Setting page title and header
@@ -101,10 +116,12 @@ def run():
     node_value = st.sidebar.selectbox('Node', list(new_dict.values()))
     node_key = find_key(new_dict, node_value)
 
+    st.divider()
     intro = st.container()
     with intro:
         Network()
-
+        
+    st.divider()
     body = st.container()
     with body:
         cpds = engine.BN_model.get_cpds()     
