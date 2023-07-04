@@ -132,7 +132,8 @@ def chat_find_tickers(variables):
     response = completion.choices[0].message.content
     return response
 
-
+# ------------------------------
+# For visualization page
 def find_key(dictionary, value):
     for key, val in dictionary.items():
         if val == value:
