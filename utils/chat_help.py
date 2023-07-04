@@ -121,7 +121,8 @@ def chat_find_tickers(variables, ticker_dic):
 
     messages.append({"role": "user", "content": user_message})
     completion = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo-0613",
+            #model="gpt-3.5-turbo-0613",
+            model = 'gpt-3.5-turbo-16k',
             messages=messages,
             temperature=0,
         )

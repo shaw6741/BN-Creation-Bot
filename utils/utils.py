@@ -40,8 +40,8 @@ class data_utilities:
         return start_date, end_date
 
     def get_rolling_returns(self, df, periods=1, roll_window=5):
-        ret_df = df.pct_change(periods).dropna()
-        rolling_ret_df = ret_df.rolling(window=roll_window).sum().dropna()
+        ret_df = copy.deepcopy(df).pct_change(periods).dropna()
+        rolling_ret_df = copy.deepcopy(ret_df).rolling(window=roll_window).sum().dropna()
         return ret_df, rolling_ret_df
 
     def get_mc_correction(self, df, col_name='MC'):
@@ -81,12 +81,14 @@ class get_data(data_utilities):
         self.fred = Fred(api_key='d68ec16bf05ee54e7c928ff6d7e144e3')
         self.market_ticker_dict = {'SP': '^GSPC', 'NASDAQ': '^IXIC', 'DOW': '^DJI', 'Russell': '^RUT', 'VIX': '^VIX',
                                    'CRUDE': 'CL=F', 'OIL': 'CL=F', 'OSD': 'CL=F', 'GOLD': 'GC=F', 'SILVER': 'SI=F', 'BOND': '^TNX', 'NOTE': '^TNX', 'FED': 'ZQ=F',
-                                   'Financial': 'XLF', 'Materials': 'XLB', 'Communications': 'XLC', 'Energy': 'XLE', 'Industrial': 'XLI',
-                                   'Technology': 'XLK', 'Consumer': 'XLP', 'Real_Estate': 'XLRE', 'Utilities': 'XLU', 'Healthcare': 'XLV', 'Consumer': 'XLY',
+                                   'Financial': 'XLF', 'Materials': 'XLB', 'Communications': 'XLC', 'Energy': 'XLE',
+                                   'Industrial': 'XLI', 'Technology': 'XLK', 'Consumer_Staples': 'XLP', 'Real_Estate': 'XLRE',
+                                   'Utilities': 'XLU', 'Healthcare': 'XLV', 'Consumer_Discretionary': 'XLY',
                                    'Growth': 'VUG', 'Value': 'VTV', 'Small_Cap': 'VB', 'Mid_Cap': 'VO', 'Large_Cap': 'VV', }
         self.economical_ticker_dict = {'CPI': 'CPIAUCSL', 'INF': 'CPIAUCSL', 'IN': 'CPIAUCSL', 
                                        'FED': 'DFF', 'FR': 'DFF', 'FRI': 'DFF',
-                                       'EPU': 'USEPUINDXD', 'Unemployment':'UNRATE'}  # , 'Unemployment' #VIX
+                                       'EPU': 'USEPUINDXD',
+                                       'Unemployment': 'UNRATE', 'UNP': 'UNRATE'}
 
     def get_historical_data(self, ticker='SP', start_date='1970-01-01', end_date='2023-06-01'):
         if ticker in self.market_ticker_dict.keys():
@@ -105,10 +107,12 @@ class get_data(data_utilities):
     def get_yahoo(self, ticker, start_date, end_date):
         all_df = yf.download(ticker, start= start_date, end= end_date).dropna()
         close_df = all_df['Close']
+        close_df.index = pd.to_datetime(close_df.index)
         return close_df
 
     def get_fred(self, ticker, start_date, end_date):
         fred_df = self.fred.get_series(ticker, observation_start=start_date, observation_end=end_date)
+        fred_df.index = pd.to_datetime(fred_df.index)
         return fred_df
 
     def create_mixed_index(self, stockA_df, stockB_df, p_a=0.5, p_b=0.5, inv=10000.0):

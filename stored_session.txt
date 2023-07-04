@@ -1,27 +1,12 @@
 Bot:
-Ok, I understand. I'll derive the edges from our conversation. The summary is: 
-1. Triggers: inflation (IN), trade war (TW)
+1. Triggers: None
 2. Controls: None
-3. Risk Events: market correction (MC)
-4. Mitigators: buying straddles (BS)
-5. Consequences: return loss (RL)
-6. Edges: IN -> MC, TW -> MC, MC -> RL, BS -> RL
+3. Risk Events: Market Correction (MC)
+4. Mitigators: None
+5. Consequences: None
+6. Edges: None
 Thank you. I'll start creating...
-User:you can derive it from conversation
-Bot:Ok, so the mitigator for the consequence of market correction is buying straddles. Can you tell me what the edges are for this Bayesian Network?
-User:i can buy straddles
-Bot:
-Ok, so the consequence of market correction is return loss. Can you tell me what the mitigators are for this consequence?
-User:return loss
-Bot:
-Ok, so there are no controls for this risk event. Can you tell me what the consequences of this risk event are?
-User:none for now
-Bot:
-Ok, so the triggers for market correction are inflation and trade war. Can you tell me what the controls are for this risk event?
-User:inflation, trade war
-Bot:
-Ok, so the risk event is market correction. Can you tell me what the triggers for this risk event are?
 User:market correction
 Bot:
-Hi there! I'm a robot here to help you create a Bayesian Network to assess the risk of event(s). Can you tell me about the risk event(s) you want to assess?
+Hi there! I'm here to help you create a Bayesian Network to assess the risk of event(s). Could you please tell me what are the risk events?
 User:hi

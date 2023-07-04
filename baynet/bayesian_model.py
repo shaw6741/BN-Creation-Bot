@@ -5,9 +5,10 @@ import datetime
 import random
 from utils.utils import get_data, definition_BayesianNetwork, get_hist_data_from_BN
 
+
 class model_run(definition_BayesianNetwork):
     def __init__(self, mkt_ticker, client_portfolio, nodes, side_, hedged_, portfolio_loss, 
-                 oil_jump, inf_jump, diff_periods, time_horizon, roll_win,
+                 oil_jump, inf_jump, fed_hike, diff_periods, time_horizon, roll_win,
                  triggers_dict, controls_dict, events_dict, mitigators_dict, consequences_dict):
         self.mkt_ticker = mkt_ticker
         self.client_portfolio = client_portfolio
@@ -17,6 +18,7 @@ class model_run(definition_BayesianNetwork):
         self.portfolio_loss = portfolio_loss
         self.oil_jump = oil_jump
         self.inf_jump = inf_jump
+        self.fed_hike = fed_hike
         self.diff_periods = diff_periods
         self.time_horizon = time_horizon
         self.roll_win = roll_win
@@ -36,12 +38,11 @@ class model_run(definition_BayesianNetwork):
         self.indicators_node_list = []
         self.missing_node_list = []
         self.not_indicator_node_list = []
-        self.eco_data = pd.DataFrame()
 
         self.oil_syn = ['CRUDE', 'OIL', 'OSD']
-        self.inf_syn = ['INF', 'CPI']
-        self.fed_syn = ['FED']
-        self.unemployment_syn = ['UNP']
+        self.inf_syn = ['INF', 'CPI', 'IN']
+        self.fed_syn = ['FED', 'FR', 'FRI']
+        self.unemployment_syn = ['UNP', 'Unemployment']
         self.unique_events = ['TW', 'DW']
 
         self.data_pull = get_data()
@@ -59,13 +60,18 @@ class model_run(definition_BayesianNetwork):
                     if node not in self.missing_node_list:
                         self.missing_node_list.append(node)
 
-    def construct_returns(self, ticker):
-        df_close = self.data_pull.get_df_portfolio(ticker, self.start, self.end)
+    def get_portfolio_returns(self, port_ticker):
+        df_close = self.data_pull.get_df_portfolio(port_ticker, self.start, self.end)
+        df_ret, df_roll_ret = self.data_pull.get_rolling_returns(df_close, self.diff_periods, self.roll_win)
+        return df_ret, df_roll_ret
+
+    def get_ticker_returns(self, ticker):
+        df_close = self.data_pull.get_historical_data(ticker, self.start, self.end)
         df_ret, df_roll_ret = self.data_pull.get_rolling_returns(df_close, self.diff_periods, self.roll_win)
         return df_ret, df_roll_ret
 
     def construct_mkt_crash(self):
-        _, mc_roll_ret = self.construct_returns(self.mkt_ticker)
+        _, mc_roll_ret = self.get_portfolio_returns(self.mkt_ticker)
         if self.events_list:
             self.mc_df = self.data_pull.get_mc_correction(mc_roll_ret, self.events_list[0])
             self.not_indicator_node_list.append(self.events_list[0])
@@ -74,7 +80,7 @@ class model_run(definition_BayesianNetwork):
             self.not_indicator_node_list.append('MC')
 
     def construct_portfolio_loss(self):
-        _, port_roll_ret = self.construct_returns(self.client_portfolio)
+        _, port_roll_ret = self.get_portfolio_returns(self.client_portfolio)
         if self.consequences_list:
             self.port_c_df = self.data_pull.get_portfolio_loss(port_roll_ret, self.portfolio_loss, self.consequences_list[0], self.portfolio_side, self.portfolio_hedged)
             self.not_indicator_node_list.append(self.consequences_list[0])
@@ -83,13 +89,10 @@ class model_run(definition_BayesianNetwork):
             self.not_indicator_node_list.append('PIL')
 
     def merge_df(self):
-        self.merged_data = pd.merge(self.mc_df, self.eco_data, how='left', left_index=True, right_index=True)
-        self.merged_data.fillna(method='ffill', inplace=True)
-        self.merged_data.dropna(inplace=True)
-
-        self.merged_data = pd.merge(self.merged_data, self.port_c_df, how='left', left_index=True, right_index=True)
-        self.merged_data.fillna(method='ffill', inplace=True)
-        self.merged_data.dropna(inplace=True)
+        self.merged_data = pd.concat([self.mc_df, self.eco_data, self.port_c_df], axis=1)
+        self.merged_data.fillna(0, inplace=True)
+        # self.merged_data.fillna(method='ffill', inplace=True)
+        # self.merged_data.dropna(inplace=True)
 
     def generate_bin_data(self):
         self.bn_data = copy.deepcopy(self.merged_data)
@@ -99,6 +102,8 @@ class model_run(definition_BayesianNetwork):
                 self.bn_data[ind] = (self.bn_data[ind] >= self.oil_jump) | (self.bn_data[ind] <= -self.oil_jump)
             elif ind in self.inf_syn:
                 self.bn_data[ind] = self.bn_data[ind] >= self.inf_jump
+            elif ind in self.fed_syn:
+                self.bn_data[ind] = self.bn_data[ind] >= self.fed_hike
             else:
                 self.bn_data[ind] = self.bn_data[ind] >= 0
             self.bn_data[ind] = self.bn_data[ind].astype(int)
@@ -128,14 +133,21 @@ class model_run(definition_BayesianNetwork):
         self.construct_portfolio_loss()
         self.get_indicators_node_list()
 
+        counter = 0
         for ind in self.indicators_node_list:
-            ind_data = self.data_pull.get_historical_data(ind, self.start, self.end)
-            ind_ret, int_roll_ret = self.data_pull.get_rolling_returns(ind_data, self.diff_periods, self.roll_win)
-            if ind in self.inf_syn:
-                self.eco_data = pd.concat([self.eco_data, ind_ret], axis=1)
+            ind_ret, int_roll_ret = self.get_ticker_returns(ind)
+            if (ind in self.inf_syn) or (ind in self.fed_syn):
+                temp_df = copy.deepcopy(ind_ret)
             else:
-                self.eco_data = pd.concat([self.eco_data, int_roll_ret], axis=1)
+                temp_df = copy.deepcopy(int_roll_ret)
+
+            if counter == 0:
+                self.eco_data = copy.deepcopy(temp_df)
+            else:
+                self.eco_data = pd.concat([self.eco_data, temp_df], axis=1)
+            counter += 1
         self.eco_data.columns = self.indicators_node_list
+        self.eco_data.fillna(0, inplace=True)
 
         self.merge_df()
         self.generate_bin_data()

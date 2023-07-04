@@ -15,12 +15,13 @@ with st.expander("Instructions", expanded=True):
             2. Select portfolio info.
         2. Say <u>Hi</u> to ChatGPT and get started!
         3. Click <u>New Chat</u> in the sidebar to restart.
-        """, unsafe_allow_html=True)
+        """, 
+        unsafe_allow_html=True)
     with col2:
         st.markdown(
             """
             ##### **After all the info are collected:**
-            1. Go to Visualization page for results.
+            1. Go to <u>Visualization</u> page for results.
             2. Click the <u>Download</u> button in the sidebar to get a conversation history file. And it will start a new session automatically.
             """,
             unsafe_allow_html=True
@@ -99,6 +100,7 @@ if API_O:
                  openai_api_key=API_O,
                 #model_name="gpt-3.5-turbo",
                 #model_name = 'gpt-3.5-turbo-0613',
+                #model_name = 'gpt-3.5-turbo-16k-0613',
                 verbose=False)
 
     if 'memory' not in st.session_state:

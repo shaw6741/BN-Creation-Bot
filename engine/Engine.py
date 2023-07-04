@@ -3,8 +3,10 @@ import json
 
 class read_json():
     def __init__(self):
-        self.path = './engine/conversation.json'
+        self.path_conversation = './engine/conversation.json'
+        self.path_chatgpt_dict = './engine/node_dic.json'
         self.data = None
+        self.chatgpt_node_dict = dict()
 
         # Inputs from conversation
         self.mkt_ticker = 'SP'
@@ -14,6 +16,7 @@ class read_json():
         # Our default inputs for BN and results
         self.oil_jump = 0.1
         self.inflation_jump = 0.002
+        self.fed_hike = 0.15
         self.portfolio_loss = -0.05
         self.simulate_samples_number = 10000
         self.historical_time_horizon = 2
@@ -23,13 +26,17 @@ class read_json():
         self.port_hedged = False
 
     def read_(self):
-        with open(self.path, 'r') as file:
+        with open(self.path_conversation, 'r') as file:
             self.data = json.load(file)
-
         self.filter_empty_keys()
 
+        with open(self.path_chatgpt_dict, 'r') as file:
+            self.chatgpt_node_dict = json.load(file)
+
+        self.chatgpt_node_dict = {key: value for key, value in self.chatgpt_node_dict.items() if value is not None}
+
     def filter_empty_keys(self):
-        keys_to_check = ['control', 'mkt_cap', 'mitigators', 'triggers', 'events', 'edges', 'consequences', 'style', 'sectors', 'hedge', 'long/short']
+        keys_to_check = ['controls', 'mkt_cap', 'mitigators', 'triggers', 'events', 'edges', 'consequences', 'style', 'sectors', 'hedge', 'long/short']
         for key in keys_to_check:
             value = self.data.get(key)
             if value is not None:
@@ -59,7 +66,7 @@ class Engine(read_json):
 
     def start(self):
         self.BN_model = model_run(self.mkt_ticker, self.client_portfolio, self.input_nodes, self.port_side, self.port_hedged, self.portfolio_loss,
-                                  self.oil_jump, self.inflation_jump, self.diff_periods,  self.historical_time_horizon, self.returns_roll_window,
+                                  self.oil_jump, self.inflation_jump, self.fed_hike, self.diff_periods,  self.historical_time_horizon, self.returns_roll_window,
                                   self.triggers_dict, self.controls_dict, self.events_dict, self.mitigators_dict, self.consequences_dict)
         self.BN_model.run_BN_model()
 
