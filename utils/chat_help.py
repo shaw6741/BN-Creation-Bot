@@ -115,10 +115,12 @@ If no ticker found, then put variable:None.
 Start the answer with the python dictionary. DO NOT add any more words beside the dictionary.
 """
 
-def chat_find_tickers(variables, ticker_dic):
-    messages = []
+from utils.utils import get_data
+def chat_find_tickers(variables):
+    ticker_dic = get_data().economical_ticker_dict
     user_message = template_find_tickers.format(variables, ticker_dic)
-
+    
+    messages = []
     messages.append({"role": "user", "content": user_message})
     completion = openai.ChatCompletion.create(
             #model="gpt-3.5-turbo-0613",
@@ -129,3 +131,27 @@ def chat_find_tickers(variables, ticker_dic):
 
     response = completion.choices[0].message.content
     return response
+
+
+def find_key(dictionary, value):
+    for key, val in dictionary.items():
+        if val == value:
+            return key
+    return None
+
+def get_node_fullname():
+    """
+    get the full names of nodes
+    return a dict {'inflation':'INF', 'trade war':'TW', ......}
+    """
+    
+    with open('./engine/conversation.json', 'r') as file:
+        json_file = json.load(file)
+    new_dict = {}
+    for section in json_file:
+        if isinstance(json_file[section], dict):
+            md_text = "- **{}**: ".format(section.title())
+            md_text += "; ".join(["{} ({})".format(value, key) for key, value in json_file[section].items()])
+            st.markdown(md_text)
+            new_dict.update(json_file[section])
+    return new_dict

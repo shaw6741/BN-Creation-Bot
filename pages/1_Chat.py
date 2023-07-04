@@ -1,13 +1,13 @@
 from utils.chat_help import *
-from utils.utils import get_data
 import streamlit as st
+from streamlit_extras.switch_page_button import switch_page
 
 # Setting page title and header
 st.set_page_config(page_title="BN Chatbot", page_icon=":robot_face:")
 st.title("Bayesian Network Creation Chat")
 with st.expander("Instructions", expanded=True):
-    col1, col2 = st.columns(2)
-    with col1:
+    left, right = st.columns(2)
+    with left:
         st.markdown("""
         ##### **Start a chat:**
         1. Go to sidebar:
@@ -17,15 +17,26 @@ with st.expander("Instructions", expanded=True):
         3. Click <u>New Chat</u> in the sidebar to restart.
         """, 
         unsafe_allow_html=True)
-    with col2:
+
+    with right:
         st.markdown(
             """
             ##### **After all the info are collected:**
             1. Go to <u>Visualization</u> page for results.
-            2. Click the <u>Download</u> button in the sidebar to get a conversation history file. And it will start a new session automatically.
             """,
             unsafe_allow_html=True
         )
+        go_to_visual = st.button("Go for the Results!", "go_visual", type='primary')
+        if go_to_visual:
+            switch_page("Visualization")
+
+        st.markdown(
+            """
+            2. Click <u>Download</u> in the sidebar to get conversation history. It will start a new session automatically.
+            """,
+            unsafe_allow_html=True,
+        )
+        
 
 template, PROMPT = get_template()
 
@@ -138,14 +149,12 @@ longshort = st.sidebar.selectbox('Long or Short?',
 # Add a button to start a new chat
 st.sidebar.button("New Chat", on_click = new_chat, type='primary')
 
-# Get the user input
-# user_input = get_text()
-
+# get user input
+# create container to auto close the input field after reaching the summary from gpt
 input_field = st.empty()
 with input_field.container():
     user_input = get_text()
 
-# Generate the output using the ConversationChain object and the user input, and add the input/output to the session
 #if user_input and st.session_state['conversation_ended'] == False:
 if user_input:
     with get_openai_callback() as cb:
@@ -176,30 +185,32 @@ with st.expander("Conversation", expanded=True):
         if len(st.session_state['generated']) > 0 and 'Thank you. I\'ll' in st.session_state['generated'][-1]:
                 # End the conversation if "Thank you. I'll" is in the output
                 st.session_state['conversation_ended'] = True
+                # close the input text field
                 input_field.empty()
                 
-# Save the conversation and sidebar information as a new file
+# Save conversation & sidebar
 if 'conversation_ended' in st.session_state and st.session_state['conversation_ended'] == True:
         download_str = '\n'.join(download_str)
-        st.sidebar.download_button('Download Conversation & Start New Session', download_str,
+        st.sidebar.download_button('Download & Restart', download_str,
                                    file_name = 'conversation_history.txt',
                                    on_click = new_chat,
                                    )
         
         final_response = st.session_state['generated'][-1]
-        data = format_data(final_response)
 
+        # save conversation file
+        data = format_data(final_response)
         with open('engine\\conversation.json', 'w') as file:
             json.dump(data, file)
         
+        # save json to find tickers
         openai.api_key = API_O
         variables = []
         for i in ['triggers','controls','events','mitigators','consequences']:
             if data.get(i):
                 variables.extend(list(data.get(i).values()))
 
-        ticker_dic = get_data().economical_ticker_dict
-        node_dic = chat_find_tickers(variables, ticker_dic)
+        node_dic = chat_find_tickers(variables)
         node_dic = eval(node_dic)
         
         with open('engine\\node_dic.json', 'w') as file:

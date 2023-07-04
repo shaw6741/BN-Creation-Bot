@@ -5,6 +5,7 @@ import numpy as np
 import json
 from engine.Engine import Engine
 from utils.utils import call_arviz_lib
+from utils.chat_help import find_key, get_node_fullname
 
 engine = Engine()
 engine.start()
@@ -37,11 +38,39 @@ def Summary(predict_y):
     df = pd.DataFrame(call_arviz_lib().get_summary(predict_y))  # st.dataframe
     st.write(df)
 
-def find_key(dictionary, value):
-    for key, val in dictionary.items():
-        if val == value:
-            return key
-    return None
+
+def create_prob_table(num_rows=1):
+    df = pd.DataFrame({'State': [None] * int(num_rows), 
+                       'Probs': [None] * int(num_rows)})
+    
+    # df = pd.DataFrame(
+    #     [
+    #         {"State": None, "Prob": None},
+    #         {"State": None, "Prob": None},
+    #     ]
+    # )
+
+    st.data_editor(df, key="data_editor",
+                   #num_rows= "dynamic",
+                   use_container_width=True,
+                   hide_index=True,
+                   column_config={
+                        'State':st.column_config.Column(help = 'names of states, e.g. for inflation, it can have 3 states: high, normal, low'),
+                        'Prob':st.column_config.NumberColumn(
+                                                             help='prior probabilities for each state, e.g. for inflation, high/low can be less likely with 10% probability each, while normal is more likely to happen with 80% probability',
+                                                             min_value = 0, max_value=1,
+                                                             #format = "%d '%'",
+                                                             )
+                    })
+
+    st.write("Here's the session state:")
+    st.write(st.session_state["data_editor"])
+#     # rows = st.session_state.data_editor['edited_rows']
+#     # states, probs = [], []
+#     # for row in rows.keys():
+#     #     states.append(rows[row]['State'])
+#     #     probs.append(rows[row]['Prob'])
+#     # st.write(states, probs)
 
 def cpd_to_df(cpd):
     variables = cpd.variables
@@ -62,35 +91,7 @@ def cpd_to_df(cpd):
     df = df.reorder_levels(variables, axis=0)
     df.sort_index(axis=0, inplace=True)
 
-    return df    
-
-def create_prob_table():
-    df = pd.DataFrame(
-        [
-            {"State": None, "Prob": None},
-            {"State": None, "Prob": None},
-        ]
-    )
-    st.data_editor(df, key="data_editor",
-                   use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        'State':st.column_config.Column(help = 'states for a node, \ne.g. for inflation, it can be high, normal, low'),
-                        'Prob':st.column_config.NumberColumn(
-                                                             help='what should be the prior probabilities for each state, \ne.g. for inflation, high/low can be less likely with 10% probability each, while normal is more likely to happen with 80% probability',
-                                                             min_value = 0, max_value=1,
-                                                             #format = "%d '%'",
-                                                             )
-                    })
-    
-    st.write("Here's the session state:")
-    st.write(st.session_state["data_editor"])
-    rows = st.session_state.data_editor['edited_rows']
-    states, probs = [], []
-    for row in rows.keys():
-        states.append(rows[row]['State'])
-        probs.append(rows[row]['Prob'])
-    st.write(states, probs)
+    return df
 
     
 def run():
@@ -98,23 +99,17 @@ def run():
     st.set_page_config(page_title="BN Results", page_icon=":robot_face:")  # , layout="wide"
     st.title("Bayesian Network Results")
     st.set_option('deprecation.showPyplotGlobalUse', False)
-    path = './engine/conversation.json'
-    with open(path, 'r') as file:
-            json_file = json.load(file)
     
-    new_dict = {}
-    for section in json_file:
-        if isinstance(json_file[section], dict):
-            md_text = "- **{}**: ".format(section.title())
-            md_text += "; ".join(["{} ({})".format(value, key) for key, value in json_file[section].items()])
-            st.markdown(md_text)
-            new_dict.update(json_file[section])
+    new_dict = get_node_fullname()
 
     # Sidebar to create
     st.sidebar.title('Select Variable')
     window = st.sidebar.slider('Num Samples', min_value=1000, max_value=100000, step=500)
     node_value = st.sidebar.selectbox('Node', list(new_dict.values()))
     node_key = find_key(new_dict, node_value)
+    for i in ['state_names','probs']:
+        if i not in st.session_state:
+            st.session_state[i] = []
 
     st.divider()
     intro = st.container()
@@ -123,11 +118,40 @@ def run():
         
     st.divider()
     body = st.container()
-    with body:
-        cpds = engine.BN_model.get_cpds()     
+    with body: # for a specific node
         st.markdown("""### Node: {}""".format(node_value))
-        create_prob_table()
+        
+        # check historical data, enter states/probs
+        with open('./engine/node_dic.json', 'r') as file:
+            node_dic = json.load(file)
+        if node_dic[node_value] or 'market correct' in node_value.lower():
+            st.markdown('**We use historical data for this node.**')
+        else:
+            st.markdown('**We don\'t have historical data for this node.**')
+            st.markdown('You can change the state & probabilities below to see how the result will change.')
+            number = st.number_input('Number of states', min_value=1, max_value=10, step=1)
 
+            for i in range(number):
+                state_num = i+1
+                left, right = st.columns(2)
+                state_names, probs = [], []
+                with left:
+                    state_name = st.text_input(f'State {state_num} Name:')
+                    state_names.append(state_name)
+                    
+                with right:
+                    prob = st.slider(f'Probability for State {state_num}', 0.00, 1.00, 0.05)
+                    probs.append(prob)
+
+            st.session_state.state_names.append(state_names)
+            st.session_state.probs.append(probs)
+            st.write(st.session_state.state_names[-1])
+            st.write(st.session_state.probs[-1])
+            #create_prob_table(number)
+
+        # Conditiona prob
+        cpds = engine.BN_model.get_cpds() 
+        
         # Get Conditional Probability for a specific node
         for cpd in cpds:
             if cpd.variable == node_key:
