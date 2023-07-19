@@ -1,11 +1,14 @@
-import re, json, openai
+import re, json, textwrap, openai, os
 import numpy as np
+from langchain.llms import OpenAI
+from langchain.chat_models import ChatOpenAI
+from langchain.chains import ConversationChain
+from langchain.memory import ConversationBufferMemory
 from langchain.prompts.prompt import PromptTemplate
 from langchain.schema import messages_from_dict, messages_to_dict
 from langchain.callbacks import get_openai_callback
 import pandas as pd
 import streamlit as st
-from utils.utils import get_data
 
 # Template for main chat
 def get_template():
@@ -113,6 +116,7 @@ If no ticker found, then put variable:None.
 Start the answer with the python dictionary. DO NOT add any more words beside the dictionary.
 """
 
+from utils.utils import get_data
 def chat_find_tickers(variables):
     ticker_dic = get_data().economical_ticker_dict
     user_message = template_find_tickers.format(variables, ticker_dic)
