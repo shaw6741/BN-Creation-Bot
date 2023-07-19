@@ -1,8 +1,5 @@
-import re, json, textwrap, openai, os
-from langchain.llms import OpenAI
-from langchain.chat_models import ChatOpenAI
-from langchain.chains import ConversationChain
-from langchain.memory import ConversationBufferMemory
+import re, json, openai
+import numpy as np
 from langchain.prompts.prompt import PromptTemplate
 from langchain.schema import messages_from_dict, messages_to_dict
 from langchain.callbacks import get_openai_callback
@@ -134,6 +131,27 @@ def chat_find_tickers(variables):
 
 # ------------------------------
 # For visualization page
+def cpd_to_df(cpd):
+    variables = cpd.variables
+    cardinality = cpd.cardinality
+    values = cpd.values.flatten()
+
+    # Generate all combinations of variable states
+    index_tuples = pd.MultiIndex.from_product([range(card) for card in cardinality], names=variables)
+    df = pd.DataFrame({'Probabilities': values}, index=index_tuples)
+    # Rename columns
+    for var in variables:
+        state_names = cpd.state_names[var]
+        state_names = np.array(state_names).astype(str)
+        column_name = f'{var} ({", ".join(state_names)})'
+        df.rename(columns={var: column_name}, inplace=True)
+
+    # Sort columns
+    df = df.reorder_levels(variables, axis=0)
+    df.sort_index(axis=0, inplace=True)
+
+    return df
+
 def find_key(dictionary, value):
     for key, val in dictionary.items():
         if val == value:
@@ -205,15 +223,24 @@ def prior_prob_table(node_value, short_name, num_rows=1):
                                                              )
                     })
 
-    priors = st.session_state.prior_table
     rows = st.session_state.prior_table['edited_rows']
-    if num_rows > len(rows):
-        missing_rows = num_rows - len(rows)
-        last_prob = 1
-        for _ in range(missing_rows - 1):
-            rows[len(rows)] = 
+
+    # if len(rows) == num_rows:
+    #     prob_count = sum('Prob' in row for row in rows.values())
+    #     if prob_count == num_rows - 1:
+    #         missing_prob = 1 - sum(row['Prob'] for row in rows.values() if 'Prob' in row)
+    #         for row in rows.values():
+    #             if 'Prob' not in row:
+    #                 row['Prob'] = missing_prob
+    
+    # st.session_state.prior_table['edited_rows'] = rows
+
+    # if num_rows > len(rows):
+    #     missing_rows = num_rows - len(rows)
+    #     if missing_rows == 1:
+    #         st.write
+        
     df_save = pd.DataFrame.from_dict(rows, orient='index')
-    st.write(st.session_state.prior_table)
     
     if ('State' and 'Prob' in df_save.columns.values):
         if df_save.Prob.count() == num_rows - 1:
@@ -221,8 +248,8 @@ def prior_prob_table(node_value, short_name, num_rows=1):
             left_prob = 1 - current_prob
             df_save['Prob'].fillna(left_prob, inplace=True)
             st.session_state.prior_table['edited_rows']
-        else:
-            st.write('test')
+        # else:
+        #     st.write('test')
 
     if ('State' and 'Prob' in df_save.columns.values):
         prob_sum = df_save['Prob'].sum()
@@ -230,19 +257,21 @@ def prior_prob_table(node_value, short_name, num_rows=1):
             df_save.to_csv(f'./engine/{short_name}_prior.csv', 
                         index=False)
             return df_save
-    else:
-        st.warning('The probabilities must sum up to 1!')
+        else:
+            st.warning('The probabilities must sum up to 1!')
 
-def cond_prob_table(priors, num_rows, short_name, child_node):   
+def cond_prob_table(priors, num_rows, short_name, child_node):  
+    state_lens = len(priors['State'].to_list())
     if child_node == 'MC':
-        df = pd.DataFrame({'State': priors['State'], 
-                        '0-5%': [None] * num_rows,
-                        '5-10%': [None] * num_rows,
-                        '10-15%': [None] * num_rows,
-                        '15-20%': [None] * num_rows,
+        df = pd.DataFrame({'State': priors['State'].to_list(), 
+                        '0-5%': [None] * state_lens,
+                        '5-10%': [None] * state_lens,
+                        '10-15%': [None] * state_lens,
+                        '15-20%': [None] * state_lens,
                         })
+        
     elif child_node == 'IL' or 'PL':
-        df = pd.DataFrame({'State': priors['State'], 
+        df = pd.DataFrame({'State': priors['State'].to_list(), 
                         '0': [None] * num_rows,
                         '1': [None] * num_rows,
                         })
@@ -265,19 +294,20 @@ def cond_prob_table(priors, num_rows, short_name, child_node):
                     column_config=config
                         )
     
-    conditions = []
-    for i in df.columns[1:]:
-        column_sum = sum(value for value in df[i] if value is not None)
-        conditions.append(column_sum != 1)
-    
     rows = st.session_state.cond_table['edited_rows']
 
     df_save = pd.DataFrame.from_dict(rows, orient='index')
-    if any(conditions):
-        st.warning('Probabilities for each column must sum up to 1')
+    err_flag = False
+    for col in df_save.columns:
+        col_sum = df_save[col].sum()
+        if col_sum != 1:
+            err_flag = True
+    
+    if err_flag == True:
+        st.warning('Probabilities for each column should have a sum of 1!')
     else:
         df_save.to_csv(f'./engine/{short_name}_conditional.csv', 
-                    index=False)
+                        index=False)
         return df_save
 
 
