@@ -104,41 +104,37 @@ def run():
 
         if any(conditions):
             st.markdown('**We used historical data for this node.**')
-            short_name, child_node = get_child_node(node_value)
-            # Conditional
-            cpds = engine.BN_model.get_cpds() 
-            
-            # Get Conditional Probability for a specific node
-            for cpd in cpds:
-                if cpd.variable == node_key:
-                    cpd_table = cpd_to_df(cpd)
-                    st.dataframe(cpd_table)
         else:
             st.markdown('**We don\'t have historical data for this node. Change the state & probabilities to see how the result changes.**')
             short_name, child_node = get_child_node(node_value)
             
-            prior, cond = st.columns([5,10])
-            with prior:
-                st.markdown('**Prior Probs**')
-                number = st.slider('Number of states', 1, 5)
-                prior_prob = prior_prob_table(node_value, short_name, pd.to_numeric(number))
-            with cond:
-                st.write(f'Conditional Probs with {child_node}')
-                file_path = f'./engine/{short_name}_prior.csv'
-                if os.path.exists(file_path):
-                    priors = pd.read_csv(file_path)
-                    condi_prob = cond_prob_table(priors,
-                                    pd.to_numeric(number), 
-                                    short_name,
-                                    child_node)
-                    
-                else:
-                    st.warning('Enter Prior first')
-                
-                
-                #st.dataframe(cond_prob)
-            
+            number = st.slider('Number of states', 1, 5)
 
+            for i in range(number):
+                state_num = i+1
+                left, right = st.columns(2)
+                state_names, probs = [], []
+                with left:
+                    state_name = st.text_input(f'State {state_num} Name:')
+                    state_names.append(state_name)
+                    
+                with right:
+                    prob = st.slider(f'Probability for State {state_num}', 0.00, 1.00, 0.05)
+                    probs.append(prob)
+
+            st.session_state.state_names.append(state_names)
+            st.session_state.probs.append(probs)
+            st.write(st.session_state.state_names)
+            st.write(st.session_state.probs)
+            
+        # Conditiona 
+        cpds = engine.BN_model.get_cpds() 
+        
+        # Get Conditional Probability for a specific node
+        for cpd in cpds:
+            if cpd.variable == node_key:
+                cpd_table = cpd_to_df(cpd)
+                st.dataframe(cpd_table)
 
         pred = get_sim_y(node_key, window)
         Posterior(pred)

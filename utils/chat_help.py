@@ -1,4 +1,4 @@
-import re, json, textwrap, openai
+import re, json, textwrap, openai, os
 from langchain.llms import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import ConversationChain
@@ -6,7 +6,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain.prompts.prompt import PromptTemplate
 from langchain.schema import messages_from_dict, messages_to_dict
 from langchain.callbacks import get_openai_callback
-import openai
+import pandas as pd
 import streamlit as st
 
 # Template for main chat
@@ -156,3 +156,129 @@ def get_node_fullname():
             st.markdown(md_text)
             new_dict.update(json_file[section])
     return new_dict
+
+def get_short_name_by_full(node_value, json_file):
+    for node_type in ['triggers', 'controls',
+                      'events', 'mitigators',
+                      'consequences']:
+        if json_file[node_type]:
+            if node_type in json_file and node_value in json_file[node_type].values():
+                for key, value in json_file[node_type].items():
+                    if value == node_value:
+                        short_name = key
+                        break
+    return short_name
+
+def get_child_node(node_value):
+    with open('./engine/conversation.json', 'r') as file:
+        data = json.load(file)
+    
+    # Find the short name
+    short_name = get_short_name_by_full(node_value, data)
+    child_node = None
+    for edge in data["edges"]:
+        if edge[0] == short_name:
+            child_node = edge[1]
+            break
+    return short_name, child_node
+
+def prior_prob_table(node_value, short_name, num_rows=1):
+    num_rows = pd.to_numeric(num_rows)
+    df = pd.DataFrame({'State': [None] * num_rows, 
+                       'Prob': [None] * num_rows})
+    st.data_editor(df, key="prior_table",
+                   #num_rows= "dynamic",
+                   use_container_width=True, hide_index=True,
+                   column_config={
+                        'State':st.column_config.Column(help = 'names of states, \
+                                                        e.g. for inflation, \
+                                                        it can have 3 states: high, normal, low'),
+                        'Prob':st.column_config.NumberColumn(
+                                                             help='prior probabilities for each state, \
+                                                                e.g. for inflation, \
+                                                                high/low can be less likely \
+                                                                with 10% probability each, \
+                                                                while normal is more likely to happen \
+                                                                with 80% probability',
+                                                             min_value = 0, max_value=1,
+                                                             #format = "%d '%'",
+                                                             )
+                    })
+
+    priors = st.session_state.prior_table
+    rows = st.session_state.prior_table['edited_rows']
+    if num_rows > len(rows):
+        missing_rows = num_rows - len(rows)
+        last_prob = 1
+        for _ in range(missing_rows - 1):
+            rows[len(rows)] = 
+    df_save = pd.DataFrame.from_dict(rows, orient='index')
+    st.write(st.session_state.prior_table)
+    
+    if ('State' and 'Prob' in df_save.columns.values):
+        if df_save.Prob.count() == num_rows - 1:
+            current_prob = df_save['Prob'].sum()
+            left_prob = 1 - current_prob
+            df_save['Prob'].fillna(left_prob, inplace=True)
+            st.session_state.prior_table['edited_rows']
+        else:
+            st.write('test')
+
+    if ('State' and 'Prob' in df_save.columns.values):
+        prob_sum = df_save['Prob'].sum()
+        if prob_sum == 1:
+            df_save.to_csv(f'./engine/{short_name}_prior.csv', 
+                        index=False)
+            return df_save
+    else:
+        st.warning('The probabilities must sum up to 1!')
+
+def cond_prob_table(priors, num_rows, short_name, child_node):   
+    if child_node == 'MC':
+        df = pd.DataFrame({'State': priors['State'], 
+                        '0-5%': [None] * num_rows,
+                        '5-10%': [None] * num_rows,
+                        '10-15%': [None] * num_rows,
+                        '15-20%': [None] * num_rows,
+                        })
+    elif child_node == 'IL' or 'PL':
+        df = pd.DataFrame({'State': priors['State'], 
+                        '0': [None] * num_rows,
+                        '1': [None] * num_rows,
+                        })
+    
+    config = {'State':st.column_config.Column(help = 'names of states based on your specification')}
+    for i in df.columns[1:]:
+        config_i = {f'{i}':st.column_config.NumberColumn(
+                                                    help=f'How likely will this situation {i} happen, \
+                                                            depend on each state',
+                                                    min_value = 0, max_value=1,
+                                                    #format = "%d '%'",
+                                                    )}
+        config.update(config_i)
+    
+
+
+    st.data_editor(df, key="cond_table",
+                    #num_rows= "dynamic",
+                    use_container_width=True, hide_index=True,
+                    column_config=config
+                        )
+    
+    conditions = []
+    for i in df.columns[1:]:
+        column_sum = sum(value for value in df[i] if value is not None)
+        conditions.append(column_sum != 1)
+    
+    rows = st.session_state.cond_table['edited_rows']
+
+    df_save = pd.DataFrame.from_dict(rows, orient='index')
+    if any(conditions):
+        st.warning('Probabilities for each column must sum up to 1')
+    else:
+        df_save.to_csv(f'./engine/{short_name}_conditional.csv', 
+                    index=False)
+        return df_save
+
+
+
