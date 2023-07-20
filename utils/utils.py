@@ -76,6 +76,7 @@ class data_utilities:
         port_df[col_name] = port_df[col_name].astype(int)
         return port_df
 
+
 class get_data(data_utilities):
     def __init__(self):
         self.fred = Fred(api_key='d68ec16bf05ee54e7c928ff6d7e144e3')
@@ -90,19 +91,29 @@ class get_data(data_utilities):
                                        'EPU': 'USEPUINDXD',
                                        'Unemployment': 'UNRATE', 'UNP': 'UNRATE'}
 
-    def get_historical_data(self, ticker='SP', start_date='1970-01-01', end_date='2023-06-01'):
-        if ticker in self.market_ticker_dict.keys():
-            data = self.get_yahoo(self.market_ticker_dict[ticker], start_date, end_date)
-            return data
-        elif ticker in self.economical_ticker_dict.keys():
-            data = self.get_fred(self.economical_ticker_dict[ticker], start_date, end_date)
-            return data
+    def get_historical_data(self, ticker='SP', start_date='1970-01-01', end_date='2023-06-01', real_ticker=None):
+        data = []
+        if real_ticker == None:
+            if ticker in self.market_ticker_dict.keys():
+                data = self.get_yahoo(self.market_ticker_dict[ticker], start_date, end_date)
+            elif ticker in self.economical_ticker_dict.keys():
+                data = self.get_fred(self.economical_ticker_dict[ticker], start_date, end_date)
+            else:
+                try:
+                    data = self.get_yahoo(ticker, start_date, end_date)
+                except:
+                    print('Error: ticker not found ' + ticker)
         else:
             try:
-                data = self.get_yahoo(ticker, start_date, end_date)
-                return data
+                data = self.get_yahoo(real_ticker, start_date, end_date)
             except:
-                print('Error: ticker not found ' + ticker)
+                print('not yahoo')
+            if len(data) == 0:
+                try:
+                    data = self.get_fred(real_ticker, start_date, end_date)
+                except:
+                    print('not fred')
+        return data
 
     def get_yahoo(self, ticker, start_date, end_date):
         all_df = yf.download(ticker, start= start_date, end= end_date).dropna()
@@ -307,6 +318,6 @@ def get_hist_data_from_BN(raw_data):
     bn_class.fit_network(train_data)
 
     test_data = pd.DataFrame(list(raw_data.values), columns=['MC'])
-    sim_data = bn_class.get_predict(test_data)
+    sim_data = bn_class.model_simulate(len(test_data))
     sim_array = np.array(sim_data['DW'])
     return sim_array

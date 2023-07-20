@@ -119,6 +119,7 @@ Start the answer with the python dictionary. DO NOT add any more words beside th
 from utils.utils import get_data
 def chat_find_tickers(variables):
     ticker_dic = get_data().economical_ticker_dict
+    ticker_dic.update({'declaration of war':'DW','market correction':'MC'})
     user_message = template_find_tickers.format(variables, ticker_dic)
     
     messages = []

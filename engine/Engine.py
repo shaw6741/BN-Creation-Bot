@@ -42,11 +42,23 @@ class read_json():
             if value is not None:
                 setattr(self, key, value)
 
+    def get_dict_node_ticker(self):
+        self.translate_node_tick = dict()
+        for comp in ['controls', 'mitigators', 'triggers', 'events', 'consequences']:
+            components_dict = self.data[comp]
+            try:
+                for key, val in components_dict.items():
+                    if val in self.chatgpt_node_dict.keys():
+                        self.translate_node_tick[key] = self.chatgpt_node_dict[val]
+            except:
+                print('Empty component: ', comp)
+
 
 class Engine(read_json):
     def __init__(self):
         super().__init__()
         self.read_()
+        self.get_dict_node_ticker()
 
     def read_(self):
         super().read_()
@@ -67,6 +79,6 @@ class Engine(read_json):
     def start(self):
         self.BN_model = model_run(self.mkt_ticker, self.client_portfolio, self.input_nodes, self.port_side, self.port_hedged, self.portfolio_loss,
                                   self.oil_jump, self.inflation_jump, self.fed_hike, self.diff_periods,  self.historical_time_horizon, self.returns_roll_window,
-                                  self.triggers_dict, self.controls_dict, self.events_dict, self.mitigators_dict, self.consequences_dict)
+                                  self.triggers_dict, self.controls_dict, self.events_dict, self.mitigators_dict, self.consequences_dict, self.translate_node_tick)
         self.BN_model.run_BN_model()
 

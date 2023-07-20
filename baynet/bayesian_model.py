@@ -9,7 +9,7 @@ from utils.utils import get_data, definition_BayesianNetwork, get_hist_data_from
 class model_run(definition_BayesianNetwork):
     def __init__(self, mkt_ticker, client_portfolio, nodes, side_, hedged_, portfolio_loss, 
                  oil_jump, inf_jump, fed_hike, diff_periods, time_horizon, roll_win,
-                 triggers_dict, controls_dict, events_dict, mitigators_dict, consequences_dict):
+                 triggers_dict, controls_dict, events_dict, mitigators_dict, consequences_dict, translator_dict):
         self.mkt_ticker = mkt_ticker
         self.client_portfolio = client_portfolio
         self.nodes = nodes
@@ -22,6 +22,7 @@ class model_run(definition_BayesianNetwork):
         self.diff_periods = diff_periods
         self.time_horizon = time_horizon
         self.roll_win = roll_win
+        self.translate_node_tick = translator_dict
 
         if triggers_dict:
             self.triggers_list = list(triggers_dict.keys())
@@ -66,7 +67,10 @@ class model_run(definition_BayesianNetwork):
         return df_ret, df_roll_ret
 
     def get_ticker_returns(self, ticker):
-        df_close = self.data_pull.get_historical_data(ticker, self.start, self.end)
+        if ticker in self.translate_node_tick.keys():
+            df_close = self.data_pull.get_historical_data(ticker, self.start, self.end, self.translate_node_tick[ticker])
+        else:
+            df_close = self.data_pull.get_historical_data(ticker, self.start, self.end)
         df_ret, df_roll_ret = self.data_pull.get_rolling_returns(df_close, self.diff_periods, self.roll_win)
         return df_ret, df_roll_ret
 

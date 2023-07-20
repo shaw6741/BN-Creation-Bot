@@ -75,19 +75,14 @@ def run():
         node_value_lower = node_value.lower()
         conditions = [node_dic[node_value],
                         any(keyword in node_value_lower 
-                            for keyword in ['buy stradd', 'buying stradd',
-                                            'market correc', 'investment loss',
+                            for keyword in ['buy strad', 'buying strad',
+                                            'market correc', 'investment los',
                                             'sell futu', 'portfolio loss',
                                             'short sell','buying str','selling fut']),
                     ]
 
     short_name, child_node = get_child_node(node_value)
     
-    if 'prior' not in st.session_state:
-        st.session_state.prior = {}
-    if 'condi' not in st.session_state:
-        st.session_state.condi = {}
-
 
     if any(conditions): # have historical data
         st.markdown('**We used historical data for this node.**')
@@ -104,32 +99,58 @@ def run():
         st.markdown('**We don\'t have historical data for this node. Change the state & probabilities to see how the result changes.**')
         prior, cond = st.columns([5,10])
 
+        # ----------------------------------
+        # Priors
+        if f'prior_{short_name}' not in st.session_state:
+            st.session_state[f'prior_{short_name}'] = pd.DataFrame()
+        if f'condi_{short_name}' not in st.session_state:
+            st.session_state[f'condi_{short_name}'] = pd.DataFrame()
+
         with prior:
             st.markdown('**Prior Probs**')
-            number = st.slider('Number of states', 1, 5)
-            num_rows = pd.to_numeric(number)
-            prior_prob = prior_prob_table(node_value, short_name, 
-                                        num_rows)
+            
+            if st.session_state[f'prior_{short_name}'].empty:
+                number = st.slider('Number of states', 1, 5)
+                num_rows = pd.to_numeric(number)
+                prior_prob = prior_prob_table(None, short_name, num_rows)
+                if isinstance(prior_prob, pd.DataFrame) and prior_prob.notna().all().all():
+                    st.session_state[f'prior_{short_name}'] = prior_prob
+            else:
+                priors = st.session_state[f'prior_{short_name}']
+                number = st.slider('Number of states', 1, 5, value=priors.shape[0])
+                num_rows = pd.to_numeric(number)
+                prior_prob = prior_prob_table(priors, short_name, num_rows)
 
-            if isinstance(prior_prob, pd.DataFrame):
-                if prior_prob.count() == num_rows**2:
-                    st.session_state.prior = prior_prob
-
+                if not prior_prob.notna().all().all():
+                    st.session_state[f'prior_{short_name}'] = priors
+                else:
+                    st.session_state[f'prior_{short_name}'] = prior_prob
+            
+            st.write(st.session_state[f'prior_{short_name}'])
+        # --------------------------------
+        # Conditional
         with cond:
             st.markdown(f'**Conditional Probs with {child_node}**')
-        
-            if isinstance(prior_prob, pd.DataFrame) and 'State' in prior_prob.columns:
-                if prior_prob['State'].count().sum() != number:
+            prior_prob = st.session_state[f'prior_{short_name}']
+            if isinstance(prior_prob, pd.DataFrame):
+                if not prior_prob.notna().all().all():
+                #if prior_prob['State'].count().sum() != number:
                     st.warning('Enter Prior first')
                 else:
-                    condi_prob = cond_prob_table(prior_prob,
-                                                pd.to_numeric(number),
-                                                short_name, child_node)
-                if isinstance(condi_prob, pd.DataFrame):        
-                    st.session_state.condi = condi_prob.to_json()
+                    if st.session_state[f'condi_{short_name}'].empty:
+                        condi_prob = cond_prob_table(engine, None, st.session_state[f'prior_{short_name}'], number,
+                                                    short_name, child_node)
+                    else:
+                        condis = st.session_state[f'condi_{short_name}']
+                        num_rows = condis.shape[0]
+                        condi_prob = cond_prob_table(engine, condis, prior_prob, number,
+                                                    short_name, child_node)
+                
+                if isinstance(condi_prob, pd.DataFrame) and condi_prob.notna().all().all():
+                    st.session_state[f'condi_{short_name}'] = condi_prob
         
-        st.write(st.session_state.prior)
-        st.write(st.session_state.condi)
+        
+            st.write(st.session_state[f'condi_{short_name}'])
 
     # --------------------------
     # FINAL PLOTS
