@@ -3,6 +3,7 @@ import re, json, openai
 import numpy as np
 import pandas as pd
 import streamlit as st
+from st_aggrid import AgGrid
 from utils.utils import get_data
 from utils.utils import definition_BayesianNetwork as db
 
@@ -52,173 +53,115 @@ def get_node_fullname():
             new_dict.update(json_file[section])
     return new_dict
 
-def get_short_name_by_full(node_value, json_file):
-    for node_type in ['triggers', 'controls',
-                      'events', 'mitigators',
-                      'consequences']:
-        if json_file[node_type]:
-            if node_type in json_file and node_value in json_file[node_type].values():
-                for key, value in json_file[node_type].items():
-                    if value == node_value:
-                        short_name = key
-                        break
-    return short_name
-
-def get_child_node(node_value):
+def get_child_node(node_key):
     with open('./engine/conversation.json', 'r') as file:
         data = json.load(file)
-    
-    # Find the short name
-    short_name = get_short_name_by_full(node_value, data)
     child_node = None
     for edge in data["edges"]:
-        if edge[0] == short_name:
+        if edge[0] == node_key:
             child_node = edge[1]
             break
-    return short_name, child_node
+    return child_node
 
-def prior_prob_table(priors, short_name, num_rows):
-    if priors is None:
-        df = pd.DataFrame({'State': [None] * num_rows, 
-                            'Prob': [None] * num_rows})
-    else:
-        df = priors
-        if num_rows != df.shape[0]:
-            # If the number of rows is less, add rows with None values
-            if num_rows > df.shape[0]:
-                diff_rows = num_rows - df.shape[0]
-                df = pd.concat([df, pd.DataFrame({'State': [None] * diff_rows, 
-                                                'Prob': [None] * diff_rows})], 
-                                                ignore_index=True)
+def json_to_df(json_data):
+    return pd.DataFrame.from_dict(json_data, orient='index')
 
-            # If the number of rows is more, delete excess rows
-            else:
-                df = df.iloc[:num_rows]
-        df = df[['State', 'Prob']]
-        #st.session_state[f'prior_{short_name}'] = pd.DataFrame()
+def df_to_json(dataframe):
+    return dataframe.to_dict(orient='index')
 
-    st.data_editor(df, key="prior_table",
-                   #num_rows= "dynamic",
-                   use_container_width=True, hide_index=True,
-                   column_config={
-                        'State':st.column_config.Column(help = 'names of states, \
-                                                        e.g. for inflation, \
-                                                        it can have 3 states: high, normal, low'),
-                        'Prob':st.column_config.NumberColumn(
-                                                             help='prior probabilities for each state',
-                                                             min_value = 0, max_value=1,
-                                                             #format = "%d '%'",
-                                                             )
-                    })
-
-    prior_rows = st.session_state.prior_table['edited_rows']
-    st.write(prior_rows)
-    df_save = pd.DataFrame.from_dict(prior_rows, orient='index')
-
-    # if ('State' and 'Prob' in df_save.columns.values):
-    #     if df_save.Prob.count() == num_rows - 1:
-    #         current_prob = df_save['Prob'].sum()
-    #         left_prob = 1 - current_prob
-    #         df_save['Prob'].fillna(left_prob, inplace=True)
-    #         st.session_state.prior_table['edited_rows']
-    #     # else:
-    #     #     st.write('test')
-
-    # the sum of Probabilities
-    prob_sum = 0
-    if not st.session_state[f'prior_{short_name}'].empty:
-        prob_sum = df['Prob'].sum()
+def check_prob(df, short_name):
+    if not df.notna().all().all():
+        st.warning("There're Null values in the table!")
     else:
         try:
-            for key, value in prior_rows.items():
-                prob_sum += value["Prob"]
-        except: prob_sum = 0
-            #st.write('no prob')
+            prob_sum = df.drop('State', axis=1).sum()
+            if (prob_sum == 1).all():
+                df.to_csv(f'./engine/{short_name}_probs.csv', index=False)
+            else:
+                cols_not_sum_to_1 = prob_sum[prob_sum != 1].index.tolist()
+                st.warning(f"The following columns do not sum up to 1: {cols_not_sum_to_1}")
+                
+        except:
+            st.warning('Probabilities must sum up to 1!')
 
-    if prob_sum == 1:
-        df_save.to_csv(f'./engine/{short_name}_prior.csv', 
-                    index=False)
-        return df_save
-    else: st.warning('The probabilities must sum up to 1!')
 
-def get_cond_df(engine, priors, num_rows, child_node):
-    n = engine.BN_model.get_cardinality()
-    n = n[child_node]
-    #n: cols, b: rows
-    data = {'State':[None]*num_rows,
-            
-            }
-    data.update({f'{child_node}State{i}': [None] * num_rows for i in range(n)})
-    df = pd.DataFrame(data)
-    Wdf = df.head(num_rows)  # Truncate to 'b' rows if needed
-    return df
-
-    cols = engine.BN_model.get_cpds() 
+def build_prob_table(num_rows, child_node):
+    df = pd.DataFrame(
+        {
+            'State':[None]*num_rows,
+            'Prior Prob':[None]*num_rows,
+        }
+    )
+    #n = engine.BN_model.get_cardinality()
+    #n = n[child_node]
+    # n: cols, b: rows
     if child_node == 'MC':
-        df = pd.DataFrame({
-                        #'State': priors['State'].to_list(), 
-                        'State' : [None] * num_rows,
-                        '0-5%': [None] * num_rows,
-                        '5-10%': [None] * num_rows,
-                        '10-15%': [None] * num_rows,
-                        '15-20%': [None] * num_rows,
-                        })
-        
-    elif child_node == 'IL' or 'PL':
-        df = pd.DataFrame({
-                        #'State': priors['State'].to_list(),
-                        'State': [None] * num_rows, 
-                        '0': [None] * num_rows,
-                        '1': [None] * num_rows,
-                        })
+    #n = 4
+        df[f'{child_node}_0-5%'] = [None] * num_rows
+        df[f'{child_node}_5-10%'] = [None] * num_rows
+        df[f'{child_node}_10-15%'] = [None] * num_rows
+        df[f'{child_node}_15-20%'] = [None] * num_rows
+
+    elif (child_node == 'PL') or (child_node == 'IL'):
+        df[f'{child_node}_0'] = [None] * num_rows
+        df[f'{child_node}_1'] = [None] * num_rows
     
-    else:
-        df = child_node
+    for col in df.columns:
+        if col == 'State':
+            df[col] = df[col].astype('str')
+        else:
+            df[col] = df[col].astype('float64')
+
     return df
 
+def update_num_states(num_rows, df):
+    if num_rows != df.shape[0]:
+        # If the number of rows is less, add rows with None
+        if num_rows > df.shape[0]:
+            diff_rows = num_rows - df.shape[0]
 
-def cond_prob_table(engine, condis, priors, num_rows, short_name, child_node):  
-    num_rows = pd.to_numeric(num_rows)
-    #state_lens = len(priors['State'].to_list())
+            concat_df = pd.DataFrame({'State': [None] * diff_rows})
+            for col in df.columns:
+                concat_df[f'{col}'] = [None] * diff_rows
+            
+            df = pd.concat([df, concat_df], ignore_index=True)
 
-    if condis is None:
-        df = get_cond_df(engine, priors, num_rows, child_node)
-    else:
-        df = condis
+        # If the number of rows is more, delete excess rows
+        else:
+            df = df.iloc[:num_rows]
+            
+    for col in df.columns:
+        if col == 'State':
+            df[col] = df[col].astype('str')
+        else:
+            df[col] = df[col].astype('float64')
     
-    config = {'State':st.column_config.Column(help = 'names of states based on your specification')}
-    for i in df.columns[1:]:
-        config_i = {f'{i}':st.column_config.NumberColumn(
-                                                    help=f'How likely will this situation {i} happen, \
-                                                            depend on each state',
-                                                    min_value = 0, max_value=1,
-                                                    #format = "%d '%'",
-                                                    )}
-        config.update(config_i)
+    return df
+
+def get_prob_table0(short_name, child_node):
+    number = st.slider('Number of States', 1, 5, value=2)
+    num_rows = pd.to_numeric(number)
+
+    df = build_prob_table(num_rows, child_node)
+    grid_return = AgGrid(df, theme="streamlit", height=200, editable=True,
+                         columns_auto_size_mode='FIT_ALL_COLUMNS_TO_VIEW',
+                         )
+
+    new_df = grid_return['data']
+    check_prob(new_df, short_name)  
+
+def get_prob_table1(short_name):
+    last_edited = pd.read_csv(f'./engine/{short_name}_probs.csv', index_col=False)
+    #last_edited = json_to_df(st.session_state[f'{short_name}_probs'][-1])
+    number = st.slider('Number of states', 1, 5, value=last_edited.shape[0])
+    num_rows = pd.to_numeric(number)
+
+    df = last_edited.copy()
+    df = update_num_states(num_rows, df)    
+
+    grid_return = AgGrid(df, theme="streamlit", height=200, editable=True,
+                         fit_columns_on_grid_load=True,
+                         )
     
-
-
-    st.data_editor(df, key="cond_table",
-                    use_container_width=True, 
-                    hide_index=True,
-                    column_config=config
-                    )
-    
-    condi_rows = st.session_state.cond_table['edited_rows']
-
-    df_save = pd.DataFrame.from_dict(condi_rows, orient='index')
-    err_flag = False
-    for col in df_save.columns:
-        col_sum = df_save[col].sum()
-        if col_sum != 1:
-            err_flag = True
-    
-    if err_flag == True:
-        st.warning('Probabilities for each column should have a sum of 1!')
-    else:
-        df_save.to_csv(f'./engine/{short_name}_conditional.csv', 
-                        index=False)
-        return df_save
-
-
-
+    new_df = grid_return['data']
+    check_prob(new_df, short_name)
