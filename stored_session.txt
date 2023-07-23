@@ -1,26 +1,39 @@
 Bot:
-Okay, I understand that I can derive the edges from the conversation. Thank you. I'll start creating the Bayesian Network with the following information: 
-1. Triggers: inflation (IN), trade war (TW), oil supply disrupted (OSD)
+Hi there! I'm here to help you create a Bayesian Network to assess the risk of event(s). Could you please tell me what the risk event(s) are?
+User:hi
+Bot:
+Hi there! I'm here to help you create a Bayesian Network to assess the risk of event(s). Could you please tell me what the risk event(s) are?
+User:hi
+Bot:
+Ok, thank you for the information. I'll start creating the Bayesian Network now.
+User:no
+Bot:
+Ok, thank you for the information. Is there anything else you'd like to add?
+User:no
+Bot:
+Ok, so the summary of the information you provided is:
+1. Triggers: inflation (INF), trade war (TW), oil supply disrupted (OSD)
 2. Controls: None
 3. Risk Events: market correction (MC)
 4. Mitigators: hedging strategies (HS)
 5. Consequences: investment loss (IL)
-6. Edges: IN -> MC, TW -> MC, OSD -> MC, MC -> IL, HS -> IL
+6. Edges: INF -> MC, TW -> MC, OSD -> MC, MC -> IL, HS -> IL
 Thank you. I'll start creating the Bayesian Network now.
-User:i think you can derive it from the conversation
-Bot: Okay, so you have hedging strategies that could be used to reduce the risk of a market correction. Can you tell me about the edges that should be included in the Bayesian Network?
-User:i have heding strategies
-Bot: Okay, so the consequence of a market correction is investment loss. Can you tell me about the mitigator(s) that could be used to reduce the risk of a market correction?
-User:investment loss
+User:no
+Bot:Ok, so the consequence of this risk event is that your investment could loss. Is there anything else you'd like to add?
+User:my investment could loss
 Bot:
-Okay, so there are no controls for now. Can you tell me about the consequence(s) of a market correction?
+Ok, so you have hedging strategies as the mitigators for the consequences of this risk event. What are the consequences of this risk event?
+User:i have hedging strategies
+Bot:
+Ok, so there are no controls for this risk event. What are the mitigators for the consequences of this risk event?
 User:no controls for now
 Bot:
-Okay, so the triggers that could cause a market correction are inflation, trade war, and oil supply disrupted. Can you tell me about the control(s) that could be used to prevent a market correction?
+Ok, so the triggers for this risk event are inflation, trade war, and oil supply disrupted. What are the controls for this risk event?
 User:inflation, trade war, oil supply disrupted
 Bot:
-Okay, so the risk event you want to assess is a market correction. Can you tell me about the trigger(s) that could cause a market correction?
+Ok, so the risk event(s) is/are market correction. What are the triggers for this risk event?
 User:market correction
 Bot:
-Hi there! I'm a robot here to help you create a Bayesian Network to assess the risk of event(s). Can you tell me about the risk event(s) you want to assess?
+Hi there! I'm here to help you create a Bayesian Network to assess the risk of event(s). Could you please tell me what the risk event(s) are?
 User:hi

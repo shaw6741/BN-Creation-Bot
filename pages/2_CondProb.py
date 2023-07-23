@@ -72,7 +72,7 @@ if 'keys_with_null_values' in globals():
 
         missing_nodes_name = keys_with_null_values[0]
         #prob_template = template(missing_nodes_name)
-        template = get_probs_template(missing_nodes_name)
+        template = get_cond_probs_template(missing_nodes_name)
 
         #Initialise session state variables
         sessions = ['generated_2', 'past_2', 'input_2', 'stored_session_2',
@@ -196,11 +196,11 @@ if 'keys_with_null_values' in globals():
                 final_response = st.session_state['generated_2'][-1]
                 st.write(final_response)
                 # Define the pattern for extracting the names and values
-                pattern = r'=\s(\d+\.\d+|\d+)'
-                matches = re.findall(pattern, final_response)
-                values = [float(value) for value in matches]
-                st.write(values)
-                matrix, max_eigenvector_2d = calculate_max_eigenvector(final_response)
-                st.write(values, max_eigenvector_2d)
-                #new_chat()
+                # pattern = r'=\s(\d+\.\d+|\d+)'
+                # matches = re.findall(pattern, final_response)
+                # values = [float(value) for value in matches]
+                # st.write(values)
+                # matrix, max_eigenvector_2d, CR = calculate_max_eigenvector(values)
+                # st.write(values, max_eigenvector_2d)
+                # #new_chat()
 

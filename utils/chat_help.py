@@ -170,10 +170,16 @@ Start the answer with the python dictionary. DO NOT add any more words beside th
 
 from utils.utils import get_data
 def chat_find_tickers(variables):
+    # get API key
+    api_path = "./pages/API_O.txt"
+    with open(api_path, "r") as file:
+        API_O = file.read()
+        openai.api_key = API_O
     ticker_dic = get_data().economical_ticker_dict
     ticker_dic.update(get_data().market_ticker_dict)
     ticker_dic.update({'declaration of war':'DW','market correction':'MC'})
     ticker_dic.update({'trade war':'DW','investment loss':'IL', 'portfolio loss':'PL'})
+    ticker_dic.update({'oil supply':'CL=F'})
     user_message = template_find_tickers.format(variables, ticker_dic)
     
     messages = []
@@ -190,65 +196,66 @@ def chat_find_tickers(variables):
 
 def get_probs_template(missing_nodes_name):
     template = f"""
-    I want you to act as a person collecting information on the probability and relative weight.
-    Ask questions one at a time, sequentially!
-    Wait for my answer before moving on to the next question.
+            I want you to act as a person collecting information on the probability and relative weight.
+            Ask questions one at a time, sequentially!
+            Wait for my answer before moving on to the next question.
 
-    Below is the instruction on asking questions.
-    Q1. Probability of which state is lower: "low" or "medium" for {missing_nodes_name}?
-    Q2. The follow-up question you should ask is;
-    Based on the lower probability state, you should ask 
-    "If relative weight of (previous answer) is 1, what is the relative weight of (opposite of previous answer)?". 
+           Below is the instruction on asking questions.
+            
+        Q1: "CWhich state has a lower probability: "{missing_nodes_name}" or Not {missing_nodes_name}?"
 
-    Q3. Probability of which state is lower: "medium" or "high" for {missing_nodes_name}?
-    Q4. The follow-up question you should ask is;
-    Based on the lower probability state, you should ask 
-    "If relative weight of (previous answer) is 1, what is the relative weight of (opposite of previous answer)?". 
+        User: [Provide your answer to Q1]
 
-    Q5. Probability of which state is lower: "low" or "high" for {missing_nodes_name}?
-    Q6. The follow-up question you should ask is;
-    Based on the lower probability state, you should ask 
-    "If relative weight of (previous answer) is 1, what is the relative weight of (opposite of previous answer)?". 
+        Bot: Thank you for your response. Now, moving on to the next question. Based on the lower probability state,
 
+        Q2: "If relative weight of (previous answer from Q1) is 1, what is the relative weight of (opposite of previous answer from Q1)?"
 
-    After you've collected all the information on relative weight value, summarize as follows:
-    low_mid = Relative weight numeric value from Q2
-    mid_high = Relative weight numeric value from Q4
-    low_high = Relative weight numeric value from Q6
+        User: [Provide your answer to Q2]
 
-    An example summary is as follows;
-    low_mid = 1.5
-    mid_high = 4
-    low_high = 7
+        Bot: Thank you for your answers. Now, let's summarize the information on relative weight values.
 
-    """
+            After you've collected all the information on relative weight value, summarize as follows:
+            {missing_nodes_name} = Relative weight numeric value
+            Not {missing_nodes_name} = Relative weight numeric value
+
+            An example summary is as follows;
+            {missing_nodes_name} = 1
+            Not {missing_nodes_name} = 3
+
+            Always end your summary with: 'Thank you. I'\ll start creating'
+
+            """
+    # conversation_history = """
+    #     Current conversation:
+    #     {history}
+
+    #     Human:{input}
+    #     Assistant
+    #     """
+
+    # template = template + conversation_history
+
+    # PROMPT = PromptTemplate(
+    #         input_variables=["history", "input"],
+    #         template=template
+    #             )
     
-    conversation_history = """
-        Current conversation:
-        {history}
-
-        Human:{input}
-        Assistant
-        """
-
-    template = template + conversation_history
-
-    PROMPT = PromptTemplate(
-            input_variables=["history", "input"],
-            template=template
-                )
-    
-    return template, PROMPT
+    return template
 
 
-def calculate_max_eigenvector(numeric_values):
-    #numeric_values = [float(value) for value in re.findall(r"=\s(\d+\.\d+|\d+)", assistant_response)]
+def calculate_max_eigenvector(assistant_response):
+    numeric_values = [float(value) for value in re.findall(r"=\s(\d+\.\d+|\d+)", assistant_response)]
 
-    nested_array = [
-        [1, numeric_values[0], numeric_values[2]],
-        [1/numeric_values[0], 1, numeric_values[1]],
-        [1/numeric_values[2], 1/numeric_values[1], 1]
-    ]
+    if numeric_values[0] == 1:
+        nested_array = [
+            [1, 1/numeric_values[1]],
+            [numeric_values[1], 1],
+        ]
+    else:
+        nested_array = [
+            [1, numeric_values[0]],
+            [1/numeric_values[0], 1],
+        ]
 
     matrix = np.array(nested_array)
     
@@ -262,38 +269,41 @@ def calculate_max_eigenvector(numeric_values):
     # Normalize the eigenvector
     max_eigenvector /= np.sum(max_eigenvector)
     max_eigenvector_2d = np.array([[value] for value in max_eigenvector])
-    
-    # Calculate CR
-    n_1 = len(max_eigenvalue) 
-    CI = (max_eigenvalue - n) / (n - 1)
-    RI = 0.58
-    CR = CI / RI
-    
-    matrices = []
-    CR_values = []
 
-    nested_array = [
-            [1, numeric_values[i], numeric_values[i+2]],
-            [1/numeric_values[i], 1, numeric_values[i+1]],
-            [1/numeric_values[i+2], 1/numeric_values[i+1], 1]
-        ]
+
+    return matrix, max_eigenvector_2d
+
+
+def get_cond_probs_template(missing_nodes_name):
+    template = f"""
+        You will act as a person collecting information on the probability and relative weight. 
+        You will ask Q1 and Q2 questions one at a time, sequentially. 
+        Please wait for user's answer before moving on to the next question.
+
+        Instruction on asking questions:
+        Below are two different questions. Before you answer, remember that the value of the probability should be between 0 and 1.
+
+        Q1: "Considering {missing_nodes_name} occurs and a 15% 'Investment loss' over 5 days, what do you think are the most likely lower limit, upper limit, and mode of the probability?"
+
+        User: [Provide your answer to Q1]
+
+        Bot: Thank you for your response. Now, moving on to the next question.
+
+        Q2: "Considering {missing_nodes_name} does not occur and a 15% 'Investment loss' over 5 days, what do you think are the most likely lower limit, upper limit, and mode of the probability?"
+
+        User: [Provide your answer to Q2]
+
+        Bot: Thank you for your answers. Now, let's summarize the information on relative weight values.
+
+        Summary:
+        Q1 = [probability lower limit], [probability upper limit], [most likely value from Q1]
+        Q2 = [probability lower limit], [probability upper limit], [most likely value from Q2]
+
+        For example:
+        Q1 = 0.1, 0.3, 0.4
+        Q2 = 0.2, 0.4, 0.3
         
-    matrix = np.array(nested_array)
-    
-    eigenvalues, eigenvectors = np.linalg.eig(matrix)
-    max_eigenvalue_index = np.argmax(eigenvalues)
-    max_eigenvalue = eigenvalues[max_eigenvalue_index]
-    
-    max_eigenvector = np.real(eigenvectors[:, max_eigenvalue_index])
-    max_eigenvector /= np.sum(max_eigenvector)
-    max_eigenvector_2d = np.array([[value] for value in max_eigenvector])
+        Always end your summary with: 'Thank you. I'\ll start creating'
 
-    n = matrix.shape[0]  # Get the size of the matrix (number of rows/columns)
-    CI = np.abs(max_eigenvalue - n) / (n - 1)  # Use the absolute value for complex numbers
-    RI = 0.58
-    CR = CI / RI
-    
-    matrices.append(max_eigenvector_2d)
-    CR_values.append(CR)
-
-    return matrices, CR_values
+        """
+    return template
