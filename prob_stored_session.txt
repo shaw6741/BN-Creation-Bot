@@ -1,0 +1,2 @@
+Bot:Q6. If the relative weight of "low" is 1, what is the relative weight of "high"?
+User:Hi. How can you help me today?

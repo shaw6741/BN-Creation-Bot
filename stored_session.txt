@@ -1,12 +1,26 @@
 Bot:
-1. Triggers: None
+Okay, I understand that I can derive the edges from the conversation. Thank you. I'll start creating the Bayesian Network with the following information: 
+1. Triggers: inflation (IN), trade war (TW), oil supply disrupted (OSD)
 2. Controls: None
-3. Risk Events: Market Correction (MC)
-4. Mitigators: None
-5. Consequences: None
-6. Edges: None
-Thank you. I'll start creating...
+3. Risk Events: market correction (MC)
+4. Mitigators: hedging strategies (HS)
+5. Consequences: investment loss (IL)
+6. Edges: IN -> MC, TW -> MC, OSD -> MC, MC -> IL, HS -> IL
+Thank you. I'll start creating the Bayesian Network now.
+User:i think you can derive it from the conversation
+Bot: Okay, so you have hedging strategies that could be used to reduce the risk of a market correction. Can you tell me about the edges that should be included in the Bayesian Network?
+User:i have heding strategies
+Bot: Okay, so the consequence of a market correction is investment loss. Can you tell me about the mitigator(s) that could be used to reduce the risk of a market correction?
+User:investment loss
+Bot:
+Okay, so there are no controls for now. Can you tell me about the consequence(s) of a market correction?
+User:no controls for now
+Bot:
+Okay, so the triggers that could cause a market correction are inflation, trade war, and oil supply disrupted. Can you tell me about the control(s) that could be used to prevent a market correction?
+User:inflation, trade war, oil supply disrupted
+Bot:
+Okay, so the risk event you want to assess is a market correction. Can you tell me about the trigger(s) that could cause a market correction?
 User:market correction
 Bot:
-Hi there! I'm here to help you create a Bayesian Network to assess the risk of event(s). Could you please tell me what are the risk events?
+Hi there! I'm a robot here to help you create a Bayesian Network to assess the risk of event(s). Can you tell me about the risk event(s) you want to assess?
 User:hi

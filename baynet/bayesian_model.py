@@ -3,6 +3,9 @@ import pandas as pd
 import copy
 import datetime
 import random
+import statsmodels.api as sm
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
 from utils.utils import get_data, definition_BayesianNetwork, get_hist_data_from_BN
 
 
@@ -156,8 +159,30 @@ class model_run(definition_BayesianNetwork):
         self.merge_df()
         self.generate_bin_data()
         self.generate_missing_data()
+        
+    def get_regression_data(self, train_size=0.5):
+        df = copy.deepcopy(self.bn_data)
+        if self.consequences_list[0]:
+            X = df.drop([self.consequences_list[0]], axis=1)
+            y = df[self.consequences_list[0]]
+        else:
+            X = df.drop(['PIL'], axis=1)
+            y = df['PIL']
+
+        # X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=train_size, random_state=0)
+
+        reg_model = sm.OLS(y, X.assign(const=1))
+        reg_results = reg_model.fit()
+        self.reg_predictions = reg_results.predict()
+
+        model = RandomForestClassifier()
+        model.fit(X, y)
+        self.rf_predictions = model.predict(X)
+
+        self.bn_predictions = self.model.predict(X)
 
     def run_BN_model(self):
         self.initialized_data()
         self.create_network(self.nodes)
         self.fit_network(self.bn_data)
+        self.get_regression_data()

@@ -13,9 +13,9 @@ engine = Engine()
 engine.start()
 
 def get_sim_y(node, n_samples):
-    predict_ = engine.BN_model.model_simulate(n_samples)
-    predict_ = predict_[node]
-    return predict_.values
+    predict_df = engine.BN_model.model_simulate(n_samples)
+    predict_ = predict_df[node]
+    return predict_df, predict_.values
 
 def Network():
     st.markdown('#### Network Plot')
@@ -39,6 +39,26 @@ def Summary(predict_y):
     st.markdown('#### Summary Table')
     df = pd.DataFrame(call_arviz_lib().get_summary(predict_y))  # st.dataframe
     st.write(df)
+
+def Autocorrelation(predict_y):
+    st.markdown('#### Autocorrelation')
+    st.pyplot(call_arviz_lib().get_autocorrelation(predict_y))
+
+def Trace(predict_y):
+    st.markdown('#### Trace')
+    st.pyplot(call_arviz_lib().get_plot_trace(predict_y))
+
+def MCSE(predict_y):
+    st.markdown('#### MCSE')
+    st.pyplot(call_arviz_lib().get_plot_mcse(predict_y))
+
+def Log_likelihood(df):
+    st.markdown('#### log likelihood')
+    st.write(engine.BN_model.get_log_l_score(df))
+
+def K2(df):
+    st.markdown('#### K2 Score')
+    st.write(engine.BN_model.get_k2_est(df))
 
 #def run():
 # Setting page title and header
@@ -73,10 +93,9 @@ with open('./engine/node_dic.json', 'r') as file:
     node_value_lower = node_value.lower()
     conditions = [node_dic[node_value],
                     any(keyword in node_value_lower 
-                        for keyword in ['buy strad', 'buying strad',
-                                        'market correc', 'investment los',
-                                        'sell futu', 'portfolio loss',
-                                        'short sell','buying str','selling fut']),
+                        for keyword in ['market correc', 'investment los',
+                                        'portfolio loss',
+                                        ]),
                 ]
 
 
@@ -107,7 +126,12 @@ else: # no historical data
 st.divider()
 visuals = st.container()
 with visuals: # for a specific node
-    pred = get_sim_y(node_key, window)
+    df_pred, pred = get_sim_y(node_key, window)
     Posterior(pred)
     Forest(pred)
     Summary(pred)
+    Autocorrelation(pred)
+    Trace(pred)
+    MCSE(pred)
+    Log_likelihood(df_pred)
+    K2(df_pred)

@@ -1,1 +1,1 @@
-{"inflation": "CPIAUCSL", "increasing fed rate": "DFF", "trade war": null, "declaration of war": "DW", "oil supply disrupted": null, "market correction": null, "buy straddles": null, "portfolio loss": null}
+{"inflation": "CPIAUCSL", "trade war": "DW", "oil supply disruption": "CL=F", "market correction": "MC", "hedging strategies": null, "my investment loss": "IL"}

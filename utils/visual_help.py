@@ -102,7 +102,7 @@ def build_prob_table(num_rows, child_node):
         df[f'{child_node}_10-15%'] = [None] * num_rows
         df[f'{child_node}_15-20%'] = [None] * num_rows
 
-    elif (child_node == 'PL') or (child_node == 'IL'):
+    else:
         df[f'{child_node}_0'] = [None] * num_rows
         df[f'{child_node}_1'] = [None] * num_rows
     

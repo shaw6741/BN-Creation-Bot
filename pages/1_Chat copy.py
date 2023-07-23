@@ -1,4 +1,5 @@
 from utils.chat_help import *
+from pages.chat_test_langchain import *
 import streamlit as st
 from streamlit_extras.switch_page_button import switch_page
 
@@ -22,18 +23,17 @@ with st.expander("Instructions", expanded=True):
         st.markdown(
             """
             ##### **After all the info are collected:**
-            1. Go to <u>Next</u> page.
+            1. Go to <u>Visualization</u> page for results.
             """,
             unsafe_allow_html=True
         )
-        go_to_next = st.button("> Next", "go_next", type='primary')
-        if go_to_next:
-            switch_page("ProbChat")
+        go_to_visual = st.button("Go for the Results!", "go_visual", type='primary')
+        if go_to_visual:
+            switch_page("Visualization")
 
         st.markdown(
             """
-            2. You can click <u>Download</u> in the sidebar to get conversation history. 
-            It will start a new session automatically.
+            2. Click <u>Download</u> in the sidebar to get conversation history. It will start a new session automatically.
             """,
             unsafe_allow_html=True,
         )
@@ -108,12 +108,8 @@ st.sidebar.title("Info Needed")
 # OpenAI API key
 API_O = st.sidebar.text_input('OPENAI-API-KEY', type='password')
 if API_O:
-    # save API key
-    api_path = "./pages/API_O.txt"
-    with open(api_path, "w") as file:
-        file.write(API_O)
-
-    llm = OpenAI(temperature=0.3,
+    llm = OpenAI(
+                temperature=0,
                  openai_api_key=API_O,
                 #model_name="gpt-3.5-turbo",
                 #model_name = 'gpt-3.5-turbo-0613',
@@ -196,28 +192,33 @@ with st.expander("Conversation", expanded=True):
                 
 # Save conversation & sidebar
 if 'conversation_ended' in st.session_state and st.session_state['conversation_ended'] == True:
-        download_str = '\n'.join(download_str)
-        st.sidebar.download_button('Download & Restart', download_str,
-                                   file_name = 'conversation_history.txt',
-                                   on_click = new_chat,
-                                   )
-        
-        final_response = st.session_state['generated'][-1]
+    download_str = '\n'.join(download_str)
+    st.sidebar.download_button('Download & Restart', download_str,
+                                file_name = 'conversation_history.txt',
+                                on_click = new_chat,
+                                )
+    
+    final_response = st.session_state['generated'][-1]
 
-        # save conversation file
-        data = format_data(final_response)
-        with open('engine\\conversation.json', 'w') as file:
-            json.dump(data, file)
-        
-        # save json to find tickers
-        openai.api_key = API_O
-        variables = []
-        for i in ['triggers','controls','events','mitigators','consequences']:
-            if data.get(i):
-                variables.extend(list(data.get(i).values()))
+    # save conversation file
+    data = format_data(final_response)
+    with open('engine\\conversation.json', 'w') as file:
+        json.dump(data, file)
+    
+    # save json to find tickers
+    openai.api_key = API_O
+    variables = []
+    for i in ['triggers','controls','events','mitigators','consequences']:
+        if data.get(i):
+            variables.extend(list(data.get(i).values()))
 
-        node_dic = chat_find_tickers(variables)
-        node_dic = eval(node_dic)
-        
-        with open('engine\\node_dic.json', 'w') as file:
-            json.dump(node_dic, file)
+    node_dic = chat_find_tickers(variables)
+    node_dic = eval(node_dic)
+    
+    with open('engine\\node_dic.json', 'w') as file:
+        json.dump(node_dic, file)
+    
+    keys_with_null_values = [key for key, value in node_dic.items() if value is None]
+    #if 'keys_with_null_values' in globals():
+    if len(keys_with_null_values) > 0:
+        prob_chat(keys_with_null_values, API_O)
