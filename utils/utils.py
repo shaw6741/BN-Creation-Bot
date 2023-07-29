@@ -58,14 +58,14 @@ class data_utilities:
         mc = l0 + l1 + l2 + l3
         mc = pd.DataFrame(mc)
         mc.columns = [col_name]
-        return mc
+        value_meanings = {
+            'MC':{'0':'0:NoMC','1':'1:MCof5%','2':'2:MCof10%','3':'3:MCof20%'}
+        }
+        return mc, value_meanings
 
-    def get_portfolio_loss(self, df, port_loss, col_name, side, hedged):
+    def get_portfolio_loss(self, df, port_loss, col_name, side):
         """0: not loss, 1: loss"""
-        if hedged:
-            ret = df * (1.0 - abs(port_loss))
-        else:
-            ret = df * (1.0 - 0.0)
+        ret = copy.deepcopy(df)
 
         if side:
             corrections = ret <= port_loss
@@ -74,7 +74,11 @@ class data_utilities:
         port_df = pd.DataFrame(corrections)
         port_df.columns = [col_name]
         port_df[col_name] = port_df[col_name].astype(int)
-        return port_df
+        value_meanings = {
+            col_name:{'0':f'0:loss<={abs(port_loss)}', 
+                      '1':f'1:loss>{abs(port_loss)}'}
+        }
+        return port_df, value_meanings
 
 
 class get_data(data_utilities):
@@ -202,8 +206,8 @@ class call_arviz_lib:
     def get_plot_ess(self, data, kind):
         az.plot_ess(data, kind=kind)
 
-    def get_plot_forest(self, data, hdi_prob=0.95, r_hat=True, ess=True):
-        az.plot_forest(data, hdi_prob=hdi_prob, r_hat=r_hat, ess=ess)
+    def get_plot_forest(self, data, kind='ridgeplot', hdi_prob=0.95, r_hat=True, ess=True):
+        az.plot_forest(data, hdi_prob=hdi_prob, r_hat=r_hat, ess=ess, kind='ridgeplot')
 
     def get_ess(self, data, var_names):
         return az.ess(data, var_names=var_names)
@@ -215,7 +219,15 @@ class call_arviz_lib:
         az.plot_mcse(data, extra_methods=extra_methods)
 
     def get_posterior(self, data):
+        fig, ax = plt.subplots(figsize=(8, 6), dpi=200)
+       
+
         az.plot_posterior(data)
+        # ax.set_xlabel("X-axis label")
+        # ax.set_ylabel("Y-axis label")
+        ax.set_title("Posterior Distribution")
+
+        plt.show()
 
     def get_dist(self, data):
         az.plot_dist(data)
@@ -320,4 +332,15 @@ def get_hist_data_from_BN(raw_data):
     test_data = pd.DataFrame(list(raw_data.values), columns=['MC'])
     sim_data = bn_class.model_simulate(len(test_data))
     sim_array = np.array(sim_data['DW'])
-    return sim_array
+    war_value_meanings = {
+        'DOW':{'2':'2:20DaysPostwar',
+              '1':'1:WarStart',
+              '0':'0:BeforeWar'},
+        'TW':{'2':'2:20DaysPostwar',
+              '1':'1:WarStart',
+              '0':'0:BeforeWar'},
+        'DW':{'2':'2:20DaysPostwar',
+              '1':'1:WarStart',
+              '0':'0:BeforeWar'}
+    }
+    return sim_array, war_value_meanings

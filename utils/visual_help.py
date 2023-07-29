@@ -3,32 +3,55 @@ import re, json, openai
 import numpy as np
 import pandas as pd
 import streamlit as st
-from st_aggrid import AgGrid
-from utils.utils import get_data
-from utils.utils import definition_BayesianNetwork as db
+from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode, JsCode
 
 # ------------------------------
 # For visualization page
-def cpd_to_df(cpd):
+def cpd_to_df(cpd, node_key, value_meanings):
     variables = cpd.variables
     cardinality = cpd.cardinality
     values = cpd.values.flatten()
 
     # Generate all combinations of variable states
     index_tuples = pd.MultiIndex.from_product([range(card) for card in cardinality], names=variables)
-    df = pd.DataFrame({'Probabilities': values}, index=index_tuples)
+    df = pd.DataFrame({'Probs': values}, index=index_tuples)
+    var_state_names = []
     # Rename columns
     for var in variables:
         state_names = cpd.state_names[var]
+        if var != node_key:
+            temp_lst = [f"{var}_{value_meanings[var][str(state)]}" for state in state_names]
+            var_state_names.extend(temp_lst)
+            #st.write(var, state_names)
+        
         state_names = np.array(state_names).astype(str)
+        
         column_name = f'{var} ({", ".join(state_names)})'
         df.rename(columns={var: column_name}, inplace=True)
-
+    
     # Sort columns
     df = df.reorder_levels(variables, axis=0)
     df.sort_index(axis=0, inplace=True)
+    df = df.reset_index()
+    df = df.sort_values(by='Probs', ascending=False)
 
-    return df
+    return df, var_state_names
+
+def get_cpd_agg(df):
+    st.markdown('**We used historical data for this node.**')
+    node_key = df.columns[0]
+    gb = GridOptionsBuilder.from_dataframe(df)
+    gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, editable=False)
+    gb.configure_column(f"{node_key}", pivot=True)
+    gb.configure_column("Probs", type=["numericColumn","numberColumnFilter","customNumericFormat"], precision=3)
+    gb.configure_grid_options(domLayout='normal')
+    gridOptions = gb.build()
+    cpt_table_agg = AgGrid(
+            df,  gridOptions=gridOptions,
+            height=300,  width='100%',
+            columns_auto_size_mode='FIT_ALL_COLUMNS_TO_VIEW',
+            editable=False
+            )
 
 def find_key(dictionary, value):
     for key, val in dictionary.items():
@@ -69,49 +92,78 @@ def json_to_df(json_data):
 def df_to_json(dataframe):
     return dataframe.to_dict(orient='index')
 
-def check_prob(df, short_name):
+def check_prob(df, short_name, num_rows):
+    warning_shown = False
     if not df.notna().all().all():
         st.warning("There're Null values in the table!")
+        warning_shown = True
     else:
         try:
-            prob_sum = df.drop('State', axis=1).sum()
-            if (prob_sum == 1).all():
+            prior_sum = df['Prior Prob'].sum()
+            if abs(prior_sum-1) > 1e-3:
+                st.warning('Prior probabilities should sum up to 1!')
+                warning_shown = True
+
+            prob_cols = df.columns.to_list()[2:]
+            for row_index in range(0,num_rows):
+                sum_values = df.loc[row_index, prob_cols].sum()
+                if abs(sum_values - 1) > 1e-3:
+                    st.warning(f'For State {df.State[row_index]}, \
+                               the conditional probabilties should sum up to 1!')
+                    warning_shown = True
+            
+            if not warning_shown:
                 df.to_csv(f'./engine/{short_name}_probs.csv', index=False)
-            else:
-                cols_not_sum_to_1 = prob_sum[prob_sum != 1].index.tolist()
-                st.warning(f"The following columns do not sum up to 1: {cols_not_sum_to_1}")
+                    
+            
+            # prob_sum = df.drop('State', axis=1).sum()
+            # if (prob_sum == 1).all():
+            #     df.to_csv(f'./engine/{short_name}_probs.csv', index=False)
+            # else:
+            #     cols_not_sum_to_1 = prob_sum[prob_sum != 1].index.tolist()
+            #     st.warning(f"The following columns do not sum up to 1: {cols_not_sum_to_1}")
                 
         except:
             st.warning('Probabilities must sum up to 1!')
+            warning_shown = True
 
 
-def build_prob_table(num_rows, child_node):
-    df = pd.DataFrame(
-        {
-            'State':[None]*num_rows,
-            'Prior Prob':[None]*num_rows,
-        }
-    )
+def build_prob_table(num_rows, child_node, short_name):
+    prior = np.load('./engine/prior.npy')
+    cond = np.load('./engine/cond.npy')
+
+    cond = pd.DataFrame(cond)
+    cond = cond.transpose()
+    cond.columns = [f'{child_node}_0', f'{child_node}_1']
+    #st.write(cond)
+
+    prior = {'State': ['Hedged', 'Not Hedged'],
+            'Prior Prob': prior.flatten()  # Flatten the array to a 1D array for the values
+                    }         
+    prior = pd.DataFrame(prior)
+
+    df = prior.merge(cond, how='left', left_index=True, right_index=True)
+
     #n = engine.BN_model.get_cardinality()
     #n = n[child_node]
     # n: cols, b: rows
-    if child_node == 'MC':
-    #n = 4
-        df[f'{child_node}_0-5%'] = [None] * num_rows
-        df[f'{child_node}_5-10%'] = [None] * num_rows
-        df[f'{child_node}_10-15%'] = [None] * num_rows
-        df[f'{child_node}_15-20%'] = [None] * num_rows
+    # if child_node == 'MC':
+    # #n = 4
+    #     df[f'{child_node}_0-5%'] = [None] * num_rows
+    #     df[f'{child_node}_5-10%'] = [None] * num_rows
+    #     df[f'{child_node}_10-15%'] = [None] * num_rows
+    #     df[f'{child_node}_15-20%'] = [None] * num_rows
 
-    else:
-        df[f'{child_node}_0'] = [None] * num_rows
-        df[f'{child_node}_1'] = [None] * num_rows
+    # else:
+    #     df[f'{child_node}_0'] = [None] * num_rows
+    #     df[f'{child_node}_1'] = [None] * num_rows
     
     for col in df.columns:
         if col == 'State':
             df[col] = df[col].astype('str')
         else:
             df[col] = df[col].astype('float64')
-
+    df.to_csv(f'./engine/{short_name}_probs.csv', index=False)
     return df
 
 def update_num_states(num_rows, df):
@@ -142,13 +194,13 @@ def get_prob_table0(short_name, child_node):
     number = st.slider('Number of States', 1, 5, value=2)
     num_rows = pd.to_numeric(number)
 
-    df = build_prob_table(num_rows, child_node)
+    df = build_prob_table(num_rows, child_node, short_name=short_name)
     grid_return = AgGrid(df, theme="streamlit", height=200, editable=True,
                          columns_auto_size_mode='FIT_ALL_COLUMNS_TO_VIEW',
                          )
 
     new_df = grid_return['data']
-    check_prob(new_df, short_name)  
+    check_prob(new_df, short_name, num_rows)  
 
 def get_prob_table1(short_name):
     last_edited = pd.read_csv(f'./engine/{short_name}_probs.csv', index_col=False)
@@ -164,4 +216,4 @@ def get_prob_table1(short_name):
                          )
     
     new_df = grid_return['data']
-    check_prob(new_df, short_name)
+    check_prob(new_df, short_name, num_rows)

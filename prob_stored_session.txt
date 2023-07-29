@@ -1,28 +1,22 @@
-Bot:Thank you for providing your response to Q2. 
+Bot:Thank you for your answers. Now, let's summarize the information on relative weight values.
 
-Now, let's summarize the information on relative weight values:
+hedging strategies = 1
+Not hedging strategies = 10
 
-Q1 = 0.1, 0.9, 0.5
-Q2 = 0.2, 0.6, 0.3
+Thank you. I will start the next step.
+User:10
+Bot:Thank you for your answers. Now, let's summarize the information on relative weight values.
 
-Thank you. I'll start creating.
-User:0.2, 0.6, 0.3
-Bot:Thank you for your response to Q2. 
+hedging strategies = 10
+Not hedging strategies = 1
 
-Now, let's summarize the information on relative weight values:
+Thank you. I will start the next step.
+User:10
+Bot:Thank you for your response. Now, moving on to the next question. Based on the lower probability state, 
 
-Q1 = 0.1, 0.9, 0.5
-Q2 = 0.2, 0.6, 0.3
-
-Thank you. I'll start creating.
-User:0.1, 0.9, 0.5
-Bot:Thank you for your response to Q1. Now let's move on to the second question.
-
-Q2: Considering hedging strategies does not occur and a 15% 'Investment loss' over 5 days, what do you think are the most likely lower limit, upper limit, and mode of the probability?
-User:OK
-Bot:Great! Let's start with the first question.
-
-Q1: Considering hedging strategies occurs and a 15% 'Investment loss' over 5 days, what do you think are the most likely lower limit, upper limit, and mode of the probability?
-User:
-Bot:Thank you for reaching out. I can help you by gathering information on probability and relative weight. I will ask you a series of questions to collect this information. Are you ready to proceed?
+Q2: If the relative weight of "Not hedging strategies" is 1, what is the relative weight of "hedging strategies"?
+User:not heding
+Bot:Q1: Which state has a lower probability: "hedging strategies" or "Not hedging strategies"?
+User:ok
+Bot:Hi, let's get the prior probabilities for some missing nodes. Shall we start?
 User:Hi. How can you help me today?

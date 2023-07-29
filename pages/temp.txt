@@ -1,5 +1,0 @@
- Below is the instruction on asking questions.
-            Q1. Which state has a lower probability: "{missing_nodes_name}" or Not {missing_nodes_name}?
-            Q2. The follow-up question you should ask is;
-            Based on the lower probability state, you should ask 
-            "If relative weight of (previous answer) is 1, what is the relative weight of (opposite of previous answer)?". 

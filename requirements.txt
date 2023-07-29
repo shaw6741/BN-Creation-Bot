@@ -11,3 +11,4 @@ langchain
 streamlit
 streamlit_chat
 streamlit-aggrid
+streamlit-extras

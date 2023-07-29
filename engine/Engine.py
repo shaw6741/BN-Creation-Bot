@@ -1,3 +1,4 @@
+import numpy as np
 from baynet.bayesian_model import model_run
 import json
 
@@ -5,6 +6,8 @@ class read_json():
     def __init__(self):
         self.path_conversation = './engine/conversation.json'
         self.path_chatgpt_dict = './engine/node_dic.json'
+        self.path_unknown_prior = './engine/prior.npy'
+        self.path_unknown_conditional = './engine/cond.npy'
         self.data = None
         self.chatgpt_node_dict = dict()
 
@@ -34,6 +37,9 @@ class read_json():
             self.chatgpt_node_dict = json.load(file)
 
         self.chatgpt_node_dict = {key: value for key, value in self.chatgpt_node_dict.items() if value is not None}
+
+        self.prior_prob = np.load(self.path_unknown_prior)
+        self.conditiona_prob = np.load(self.path_unknown_conditional)
 
     def filter_empty_keys(self):
         keys_to_check = ['controls', 'mkt_cap', 'mitigators', 'triggers', 'events', 'edges', 'consequences', 'style', 'sectors', 'hedge', 'long/short']
@@ -77,8 +83,10 @@ class Engine(read_json):
             self.port_hedged = True
 
     def start(self):
-        self.BN_model = model_run(self.mkt_ticker, self.client_portfolio, self.input_nodes, self.port_side, self.port_hedged, self.portfolio_loss,
-                                  self.oil_jump, self.inflation_jump, self.fed_hike, self.diff_periods,  self.historical_time_horizon, self.returns_roll_window,
-                                  self.triggers_dict, self.controls_dict, self.events_dict, self.mitigators_dict, self.consequences_dict, self.translate_node_tick)
+        self.BN_model = model_run(self.mkt_ticker, self.client_portfolio, self.input_nodes, self.port_side, self.port_hedged,
+                                  self.portfolio_loss, self.oil_jump, self.inflation_jump, self.fed_hike, self.diff_periods,
+                                  self.historical_time_horizon, self.returns_roll_window, self.triggers_dict, self.controls_dict,
+                                  self.events_dict, self.mitigators_dict, self.consequences_dict, self.translate_node_tick,
+                                  self.prior_prob, self.conditiona_prob)
         self.BN_model.run_BN_model()
 

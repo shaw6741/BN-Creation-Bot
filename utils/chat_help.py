@@ -52,56 +52,6 @@ def get_template():
     
     return template, PROMPT
 
-def get_probs_template():
-    template = """
-        I want you to act as a person collecting information on the probability and relative weight.
-        Ask questions one at a time, sequentially!
-        Wait for my answer before moving on to the next question.
-
-        Below is the instruction on asking questions.
-        Q1. Probability of which state is lower: "low" or "medium" for {missing_nodes_name}?
-        Q2. The follow-up question you should ask is;
-        Based on the lower probability state, you should ask 
-        "If relative weight of (previous answer) is 1, what is the relative weight of (opposite of previous answer)?". 
-
-        Q3. Probability of which state is lower: "medium" or "high" for {missing_nodes_name}?
-        Q4. The follow-up question you should ask is;
-        Based on the lower probability state, you should ask 
-        "If relative weight of (previous answer) is 1, what is the relative weight of (opposite of previous answer)?". 
-
-        Q5. Probability of which state is lower: "low" or "high" for {missing_nodes_name}?
-        Q6. The follow-up question you should ask is;
-        Based on the lower probability state, you should ask 
-        "If relative weight of (previous answer) is 1, what is the relative weight of (opposite of previous answer)?". 
-
-
-        After you've collected all the information on relative weight value, summarize as follows:
-        low_mid = Relative weight numeric value from Q2
-        mid_high = Relative weight numeric value from Q4
-        low_high = Relative weight numeric value from Q6
-
-        An example summary is as follows;
-        low_mid = 1.5
-        mid_high = 4
-        low_high = 7
-
-        Always end the summary with: 'Thank you. I\'ll start creating...'
-
-        Current conversation:
-        {history}
-
-        Human: {input}
-        Assistant:
-
-        """
-
-    PROMPT = PromptTemplate(
-            input_variables=['missing_node_name', "history", "input"],
-            template=template
-                )
-    
-    return template, PROMPT
-
 
 # ---------------------------------------------
 # Format Results
@@ -194,37 +144,37 @@ def chat_find_tickers(variables):
     response = completion.choices[0].message.content
     return response
 
-def get_probs_template(missing_nodes_name):
+def get_prior_probs_template(missing_nodes_name):
     template = f"""
-            I want you to act as a person collecting information on the probability and relative weight.
-            Ask questions one at a time, sequentially!
-            Wait for my answer before moving on to the next question.
-
-           Below is the instruction on asking questions.
+        I want you to act as a person collecting information on the probability and relative weight.
+        Ask questions one at a time, sequentially!
+        Wait for my answer before moving on to the next question.
+        Always start the conversation with 'Hi, let's get the prior probabilities for some missing nodes. Shall we start?'
+        Below is the instruction on asking questions.
             
-        Q1: "CWhich state has a lower probability: "{missing_nodes_name}" or Not {missing_nodes_name}?"
+        Q1: "Which state has a lower probability: "{missing_nodes_name}" or Not {missing_nodes_name}?"
 
-        User: [Provide your answer to Q1]
+        User provide answers.
 
         Bot: Thank you for your response. Now, moving on to the next question. Based on the lower probability state,
 
-        Q2: "If relative weight of (previous answer from Q1) is 1, what is the relative weight of (opposite of previous answer from Q1)?"
+        Q2: "If relative weight of (the lower probability state from Q1) is 1, what is the relative weight of (opposite of lower probability state from Q1)?"
 
-        User: [Provide your answer to Q2]
+        User provide answers.
 
         Bot: Thank you for your answers. Now, let's summarize the information on relative weight values.
+        {missing_nodes_name} = Relative weight numeric value
+        Not {missing_nodes_name} = Relative weight numeric value
+        Thank you. I will start next step.
 
-            After you've collected all the information on relative weight value, summarize as follows:
-            {missing_nodes_name} = Relative weight numeric value
-            Not {missing_nodes_name} = Relative weight numeric value
+        Example summary:
+        {missing_nodes_name} = 1
+        Not {missing_nodes_name} = 3
+        Thank you. I will start the next step.
 
-            An example summary is as follows;
-            {missing_nodes_name} = 1
-            Not {missing_nodes_name} = 3
+        Always end your summary with: 'Thank you. I will start the next step.'
 
-            Always end your summary with: 'Thank you. I'\ll start creating'
-
-            """
+        """
     # conversation_history = """
     #     Current conversation:
     #     {history}
@@ -243,9 +193,7 @@ def get_probs_template(missing_nodes_name):
     return template
 
 
-def calculate_max_eigenvector(assistant_response):
-    numeric_values = [float(value) for value in re.findall(r"=\s(\d+\.\d+|\d+)", assistant_response)]
-
+def calculate_max_eigenvector(numeric_values):
     if numeric_values[0] == 1:
         nested_array = [
             [1, 1/numeric_values[1]],
@@ -270,40 +218,125 @@ def calculate_max_eigenvector(assistant_response):
     max_eigenvector /= np.sum(max_eigenvector)
     max_eigenvector_2d = np.array([[value] for value in max_eigenvector])
 
-
     return matrix, max_eigenvector_2d
 
 
+#  """0: not mc, 1: mc of 5%, 2 mc of 10% and 3 mc of 20%"""
 def get_cond_probs_template(missing_nodes_name):
     template = f"""
         You will act as a person collecting information on the probability and relative weight. 
-        You will ask Q1 and Q2 questions one at a time, sequentially. 
+        You will ask Q1 ~ Q8 questions one at a time, sequentially. 
         Please wait for user's answer before moving on to the next question.
-
+        Always start the conversation with 'Thank you for finishing the prior probabilities part, next let\'s get the conditional probabilities for some missing nodes with its child node. Shall we start?'
+        
         Instruction on asking questions:
-        Below are two different questions. Before you answer, remember that the value of the probability should be between 0 and 1.
+        Below are eight different questions. Before you answer, remember that the value of the probability should be between 0 and 1.
 
-        Q1: "Considering {missing_nodes_name} occurs and a 15% 'Investment loss' over 5 days, what do you think are the most likely lower limit, upper limit, and mode of the probability?"
+        Q1: "What are your opinions on the lower limit, upper limit, and most likely value(in percentage) of 'Investment loss', considering the occurrence of {missing_nodes_name} and no market correction happening?"
 
         User: [Provide your answer to Q1]
 
         Bot: Thank you for your response. Now, moving on to the next question.
 
-        Q2: "Considering {missing_nodes_name} does not occur and a 15% 'Investment loss' over 5 days, what do you think are the most likely lower limit, upper limit, and mode of the probability?"
+        Q2: "What are your opinions on the lower limit, upper limit, and most likely value(in percentage) of 'Investment loss', considering the occurrence of {missing_nodes_name} and market correction of 5% happening?"
 
         User: [Provide your answer to Q2]
+
+        Bot: Thank you for your response. Now, moving on to the next question.
+
+        Q3: "What are your opinions on the lower limit, upper limit, and most likely value(in percentage) of 'Investment loss', considering the occurrence of {missing_nodes_name} and market correction of 10% happening?"
+
+        User: [Provide your answer to Q3]
+
+        Bot: Thank you for your response. Now, moving on to the next question.
+
+        Q4: "What are your opinions on the lower limit, upper limit, and most likely value(in percentage) of 'Investment loss', considering the occurrence of {missing_nodes_name} and market correction of 20% happening?"
+
+        User: [Provide your answer to Q4]
+
+        Bot: Thank you for your response. Now, moving on to the next question.
+
+        Q5: "What are your opinions on the lower limit, upper limit, and most likely value(in percentage) of 'Investment loss', considering the occurrence of not {missing_nodes_name} and no market correction happening?"
+
+        User: [Provide your answer to Q5]
+
+        Bot: Thank you for your response. Now, moving on to the next question.
+
+        Q6: "What are your opinions on the lower limit, upper limit, and most likely value(in percentage) of 'Investment loss', considering the occurrence of not {missing_nodes_name} and market correction of 5% happening?"
+
+        User: [Provide your answer to Q6]
+
+        Bot: Thank you for your response. Now, moving on to the next question.
+
+        Q7: "What are your opinions on the lower limit, upper limit, and most likely value(in percentage) of 'Investment loss', considering the occurrence of not {missing_nodes_name} and market correction of 10% happening?"
+
+        User: [Provide your answer to Q7]
+
+        Bot: Thank you for your response. Now, moving on to the next question.
+
+        Q8: "What are your opinions on the lower limit, upper limit, and most likely value(in percentage) of 'Investment loss', considering the occurrence of not {missing_nodes_name} and market correction of 20% happening?"
+
+        User: [Provide your answer to Q8]
 
         Bot: Thank you for your answers. Now, let's summarize the information on relative weight values.
 
         Summary:
         Q1 = [probability lower limit], [probability upper limit], [most likely value from Q1]
         Q2 = [probability lower limit], [probability upper limit], [most likely value from Q2]
+        Q3 = [probability lower limit], [probability upper limit], [most likely value from Q1]
+        Q4 = [probability lower limit], [probability upper limit], [most likely value from Q2]
+        Q5 = [probability lower limit], [probability upper limit], [most likely value from Q1]
+        Q6 = [probability lower limit], [probability upper limit], [most likely value from Q2]
+        Q7 = [probability lower limit], [probability upper limit], [most likely value from Q2]
+        Q8 = [probability lower limit], [probability upper limit], [most likely value from Q2]
 
         For example:
-        Q1 = 0.1, 0.3, 0.4
-        Q2 = 0.2, 0.4, 0.3
-        
+        Q1 = 10, 30, 15
+        Q2 = 30, 10, 20
+        Q3 = 5, 10, 20
+        Q4 = 7, 10, 25
+        Q5 = 0, 10, 20
+        Q6 = 20, 10, 80
+        Q7 = 10, 10, 50
+        Q8 = 40, 10, 70
+
         Always end your summary with: 'Thank you. I'\ll start creating'
 
+        Remember to ask the question one at a time, sequentially. 
         """
     return template
+
+def extract_opinions_list(assistant_response):
+    pattern = r'Q\d\s=\s([\d.,\s]+)'
+    match = re.findall(pattern, assistant_response)
+    opinions_list = [list(map(float, values.split(', '))) for values in match]
+    return opinions_list
+
+def triangular_cdf(x, a, b, c):
+    if x <= a:
+        return 0.0
+    elif a < x <= c:
+        return (x - a)**2 / ((b - a) * (c - a))
+    elif c < x < b:
+        return 1 - (b - x)**2 / ((b - a) * (b - c))
+    else:
+        return 1
+
+def calculate_probability_at_x(opinions_list, x):
+    probabilities = []
+    for opinion_list in opinions_list:
+        a, b, c = opinion_list
+        probability_at_x = triangular_cdf(x, a, b, c)
+        probabilities.append(probability_at_x)
+    return probabilities
+
+def create_result_array(assistant_response, x_value):
+#def create_result_array(opinions_list, x_value):
+    opinions_list = extract_opinions_list(assistant_response)
+    
+    # Calculate the probabilities at the X value for each distribution
+    probability_at_x = calculate_probability_at_x(opinions_list, x_value)
+    probability_at_x_compl = [1 - prob for prob in probability_at_x]
+    
+    result_array = np.array([probability_at_x, probability_at_x_compl])
+    return result_array
