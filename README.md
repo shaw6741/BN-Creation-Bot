@@ -15,6 +15,7 @@ python main.py
 ```
 
 ## How it work
+[DemoVideo](https://github.com/shaw6741/BN-Creation-Bot/blob/main/demo.mp4)
 - **Prompt Engineering**: ensure that GPT3.5 controls the overall process, gathers necessary information, and provides formatted output for easy extraction and code integration.
 - **Communication**: Users interact with GPT3.5 to provide inputs such as triggers, controls, risk events, mitigators, consequences, and edges. Conversational interaction allows users to seek explanations and refine the network.
 - **Information Analysis**: GPT3.5 analyzes and summarizes the provided information, extracting relevant dependencies and relationships between variables in a formatted manner. This enables further processing and network creation.
