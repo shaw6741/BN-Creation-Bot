@@ -35,10 +35,14 @@ python main.py
 │   ├── node_dic.json
 ├── pages
 │   ├── 1_Chat.py
-│   ├── 2_Visualization.py
+│   ├── 2_ProbChat.py
+│   ├── 3_Visualization.py
 ├── utils
 │   ├── chat_help.py
-│   ├── utils.json
+│   ├── cond_prob_chat.py
+│   ├── prior_prob_chat.py
+│   ├── utils.py
+│   ├── visual_help.py
 │   ├── hist_mc.csv
 ├── About.py
 ├── main.py
