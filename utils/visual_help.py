@@ -64,17 +64,22 @@ def get_node_fullname():
     get the full names of nodes
     return a dict {'inflation':'INF', 'trade war':'TW', ......}
     """
-    
     with open('./engine/conversation.json', 'r') as file:
         json_file = json.load(file)
     new_dict = {}
+    md_text_lst = []
     for section in json_file:
         if isinstance(json_file[section], dict):
             md_text = "- **{}**: ".format(section.title())
             md_text += "; ".join(["{} ({})".format(value, key) for key, value in json_file[section].items()])
-            st.markdown(md_text)
+            md_text_lst.append(md_text)
+            #st.markdown(md_text)
             new_dict.update(json_file[section])
-    return new_dict
+    return json_file, new_dict, md_text_lst
+
+def write_conversation_info(new_dict, md_text_lst):
+    for text in md_text_lst:
+        st.markdown(text)
 
 def get_child_node(node_key):
     with open('./engine/conversation.json', 'r') as file:
@@ -104,13 +109,13 @@ def check_prob(df, short_name, num_rows):
                 st.warning('Prior probabilities should sum up to 1!')
                 warning_shown = True
 
-            prob_cols = df.columns.to_list()[2:]
-            for row_index in range(0,num_rows):
-                sum_values = df.loc[row_index, prob_cols].sum()
-                if abs(sum_values - 1) > 1e-3:
-                    st.warning(f'For State {df.State[row_index]}, \
-                               the conditional probabilties should sum up to 1!')
-                    warning_shown = True
+            # prob_cols = df.columns.to_list()[2:]
+            # for row_index in range(0,num_rows):
+            #     sum_values = df.loc[row_index, prob_cols].sum()
+            #     if abs(sum_values - 1) > 1e-3:
+            #         st.warning(f'For State {df.State[row_index]}, \
+            #                    the conditional probabilties should sum up to 1!')
+            #         warning_shown = True
             
             if not warning_shown:
                 df.to_csv(f'./engine/{short_name}_probs.csv', index=False)
@@ -164,7 +169,7 @@ def build_prob_table(num_rows, child_node, short_name):
         else:
             df[col] = df[col].astype('float64')
     df.to_csv(f'./engine/{short_name}_probs.csv', index=False)
-    return df
+    return prior, cond, df
 
 def update_num_states(num_rows, df):
     if num_rows != df.shape[0]:
@@ -194,26 +199,56 @@ def get_prob_table0(short_name, child_node):
     number = st.slider('Number of States', 1, 5, value=2)
     num_rows = pd.to_numeric(number)
 
-    df = build_prob_table(num_rows, child_node, short_name=short_name)
-    grid_return = AgGrid(df, theme="streamlit", height=200, editable=True,
-                         columns_auto_size_mode='FIT_ALL_COLUMNS_TO_VIEW',
-                         )
+    prior, cond, df = build_prob_table(num_rows, child_node, short_name=short_name)
+    prior_gb = GridOptionsBuilder.from_dataframe(prior)
+    prior_gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, editable=True)
+    prior_gb.configure_column('Prior Prob', type=["numericColumn","numberColumnFilter","customNumericFormat"], precision=3, aggFunc='sum')
+    prior_gb.configure_grid_options(domLayout='normal')
+    infer_gridOptions = prior_gb.build()
+    prior_df_agg = AgGrid(
+            prior, 
+            gridOptions=infer_gridOptions,
+            height=200,  width='100%',
+            columns_auto_size_mode='FIT_ALL_COLUMNS_TO_VIEW',
+            editable=True
+            )
 
-    new_df = grid_return['data']
-    check_prob(new_df, short_name, num_rows)  
+    # grid_cond = AgGrid(cond, theme="streamlit", height=200, editable=True,
+    #                      columns_auto_size_mode='FIT_ALL_COLUMNS_TO_VIEW',
+    #                      )
+    # grid_df = AgGrid(df, theme="streamlit", height=200, editable=True,
+    #                      columns_auto_size_mode='FIT_ALL_COLUMNS_TO_VIEW',
+    #                      )
+
+    # new_df = grid_df['data']
+    # check_prob(new_df, short_name, num_rows)  
 
 def get_prob_table1(short_name):
     last_edited = pd.read_csv(f'./engine/{short_name}_probs.csv', index_col=False)
+    last_edited = last_edited[['State', 'Prior Prob']]
     #last_edited = json_to_df(st.session_state[f'{short_name}_probs'][-1])
     number = st.slider('Number of states', 1, 5, value=last_edited.shape[0])
     num_rows = pd.to_numeric(number)
 
     df = last_edited.copy()
     df = update_num_states(num_rows, df)    
+    prior_gb = GridOptionsBuilder.from_dataframe(df)
+    prior_gb.configure_default_column(groupable=True, value=True, enableRowGroup=True, editable=True)
+    prior_gb.configure_column('Prior Prob', type=["numericColumn","numberColumnFilter","customNumericFormat"], precision=3, aggFunc='sum')
+    prior_gb.configure_grid_options(domLayout='normal')
+    infer_gridOptions = prior_gb.build()
+    prior_df_agg = AgGrid(
+            df, 
+            gridOptions=infer_gridOptions,
+            height=200,  width='100%',
+            columns_auto_size_mode='FIT_ALL_COLUMNS_TO_VIEW',
+            editable=True
+            )
 
-    grid_return = AgGrid(df, theme="streamlit", height=200, editable=True,
-                         fit_columns_on_grid_load=True,
-                         )
+
+    # grid_return = AgGrid(df, theme="streamlit", height=200, editable=True,
+    #                      fit_columns_on_grid_load=True,
+    #                      )
     
-    new_df = grid_return['data']
+    new_df = prior_df_agg['data']
     check_prob(new_df, short_name, num_rows)

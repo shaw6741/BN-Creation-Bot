@@ -206,8 +206,8 @@ class call_arviz_lib:
     def get_plot_ess(self, data, kind):
         az.plot_ess(data, kind=kind)
 
-    def get_plot_forest(self, data, kind='ridgeplot', hdi_prob=0.95, r_hat=True, ess=True):
-        az.plot_forest(data, hdi_prob=hdi_prob, r_hat=r_hat, ess=ess, kind='ridgeplot')
+    def get_plot_forest(self, node_key, data, hdi_prob=0.95, r_hat=True, ess=True):
+        az.plot_forest(data, var_names=node_key, hdi_prob=hdi_prob, r_hat=r_hat, ess=ess)
 
     def get_ess(self, data, var_names):
         return az.ess(data, var_names=var_names)
@@ -218,15 +218,10 @@ class call_arviz_lib:
     def get_plot_mcse(self, data, extra_methods=True):
         az.plot_mcse(data, extra_methods=extra_methods)
 
-    def get_posterior(self, data):
+    def get_posterior(self, data, node_key):
         fig, ax = plt.subplots(figsize=(8, 6), dpi=200)
-       
-
-        az.plot_posterior(data)
-        # ax.set_xlabel("X-axis label")
-        # ax.set_ylabel("Y-axis label")
+        az.plot_posterior(data, var_names=[node_key])
         ax.set_title("Posterior Distribution")
-
         plt.show()
 
     def get_dist(self, data):

@@ -20,7 +20,7 @@ class read_json():
         self.oil_jump = 0.1
         self.inflation_jump = 0.002
         self.fed_hike = 0.15
-        self.portfolio_loss = -0.05
+        self.portfolio_loss = -0.15
         self.simulate_samples_number = 10000
         self.historical_time_horizon = 2
         self.diff_periods = 1

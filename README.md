@@ -43,5 +43,4 @@ python main.py
 ├── About.py
 ├── main.py
 ├── requirements.txt
-├── stored_session.py
 ```

@@ -217,22 +217,25 @@ class model_run(definition_BayesianNetwork):
         prior_prob = np.array([list(self.prior_prob[1]), list(self.prior_prob[0])])
         prior_cpd = TabularCPD(node, 2, prior_prob)
 
-        cond_prob = np.array([list(self.conditional_prob[1]), list(self.conditional_prob[0])])
+        # cond_prob = np.array([list(self.conditional_prob[1]), list(self.conditional_prob[0])])
+        cond_prob = np.array([list(self.conditional_prob[0]), list(self.conditional_prob[1])])
         if self.consequences_list:
             prev_prob = self.model.get_cpds(self.consequences_list[0]).values
-            new_cond_prob = mix_prob(prev_prob, cond_prob)
+            # new_cond_prob = mix_prob(prev_prob, cond_prob)
+            new_cond_prob = cond_prob
             if self.events_list:
                 cond_cpd = TabularCPD(self.consequences_list[0], 2, new_cond_prob, evidence=[node, self.events_list[0]], evidence_card=[2, 4])
             else:
                 cond_cpd = TabularCPD(self.consequences_list[0], 2, new_cond_prob, evidence=[node, 'MC'], evidence_card=[2, 4])
         else:
             prev_prob = self.model.get_cpds('PIL').values
-            new_cond_prob = mix_prob(prev_prob, cond_prob)
+            # new_cond_prob = mix_prob(prev_prob, cond_prob)
+            new_cond_prob = cond_prob
             if self.events_list:
                 cond_cpd = TabularCPD('PIL', 2, new_cond_prob, evidence=[node, self.events_list[0]], evidence_card=[2, 4])
             else:
                 cond_cpd = TabularCPD('PIL', 2, new_cond_prob, evidence=[node, 'MC'], evidence_card=[2, 4])
-
+        
         self.model.add_cpds(prior_cpd, cond_cpd)
         
     def get_regression_data(self, train_size=0.5):
